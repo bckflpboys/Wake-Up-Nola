@@ -1,8 +1,6 @@
 /**
  * SplashScreen - Interactive Live WebGL Stitched Embroidery
- * - Matches app's light-blue background (#F4F7FB)
- * - Self-drawing progressive stitching animation
- * - Automatically opens the Chat workspace upon completion
+ * Minimalist, immersive full-screen presentation with a sleek WAKE UP NOLA loading bar.
  */
 
 import React, { useEffect, useRef } from 'react';
@@ -27,22 +25,31 @@ interface SplashScreenProps {
 
 export const SplashScreen: React.FC<SplashScreenProps> = ({
     onFinish,
-    statusMessage = 'Initializing offline models...',
+    statusMessage = 'INITIALIZING ON-DEVICE SLM',
     isReady = false,
 }) => {
     const fadeAnim = useRef(new Animated.Value(0)).current;
+    const progressAnim = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
+        // Fade in container
         Animated.timing(fadeAnim, {
             toValue: 1,
-            duration: 600,
+            duration: 500,
             useNativeDriver: true,
         }).start();
 
-        // Fallback auto-transition after 6.0 seconds (matches relaxed slow stitching animation)
+        // Smooth progress bar filling over 4.8s
+        Animated.timing(progressAnim, {
+            toValue: 1,
+            duration: 4800,
+            useNativeDriver: false,
+        }).start();
+
+        // Fallback auto-transition after 5.4s
         const timer = setTimeout(() => {
             handleComplete();
-        }, 6000);
+        }, 5400);
 
         return () => clearTimeout(timer);
     }, []);
@@ -70,10 +77,19 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
 
     const htmlContent = generateEmbroideryHtml();
 
+    const progressWidth = progressAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['0%', '100%'],
+    });
+
     return (
         <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
-            {/* 1. Live WebGL Self-Drawing Embroidery Canvas */}
-            <View style={styles.webglWrapper}>
+            {/* 1. Full-screen Live WebGL Canvas */}
+            <TouchableOpacity
+                activeOpacity={1}
+                onPress={handleComplete}
+                style={styles.webglWrapper}
+            >
                 {Platform.OS === 'web' ? (
                     <iframe
                         srcDoc={htmlContent}
@@ -95,29 +111,22 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
                         onMessage={handleWebViewMessage}
                     />
                 )}
-            </View>
+            </TouchableOpacity>
 
-            {/* 2. Floating Bottom Pill */}
-            <View style={styles.bottomCardWrapper}>
-                <TouchableOpacity
-                    onPress={handleComplete}
-                    style={styles.bottomCard}
-                    activeOpacity={0.85}
-                >
+            {/* 2. Sleek WAKE UP NOLA Loading Bar (No Card Box) */}
+            <View style={styles.loadingBarContainer}>
+                <View style={styles.loadingHeaderRow}>
                     <View style={styles.brandRow}>
-                        <View style={styles.brandBadge}>
-                            <Ionicons name="sparkles" size={14} color={colors.primary[500]} />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                            <Text style={styles.appTitle}>WAKE UP NOLA!</Text>
-                            <Text style={styles.appSubtitle}>Offline Assistant • Gemma 4 Ready</Text>
-                        </View>
-                        <View style={styles.skipTag}>
-                            <Text style={styles.skipText}>Enter</Text>
-                            <Ionicons name="chevron-forward" size={12} color={colors.primary[600]} />
-                        </View>
+                        <View style={styles.pulseDot} />
+                        <Text style={styles.brandLabel}>WAKE UP NOLA</Text>
                     </View>
-                </TouchableOpacity>
+                    <Text style={styles.statusLabel}>GEMMA 4 READY</Text>
+                </View>
+
+                {/* Loading Track */}
+                <View style={styles.progressTrack}>
+                    <Animated.View style={[styles.progressBar, { width: progressWidth }]} />
+                </View>
             </View>
         </Animated.View>
     );
@@ -135,63 +144,59 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: colors.background.canvas,
     },
-    bottomCardWrapper: {
+    loadingBarContainer: {
         position: 'absolute',
         bottom: 0,
         left: 0,
         right: 0,
-        paddingHorizontal: spacing.lg,
+        paddingHorizontal: spacing['2xl'],
         paddingBottom: Platform.OS === 'ios' ? spacing['3xl'] : spacing.xl,
         alignItems: 'center',
     },
-    bottomCard: {
+    loadingHeaderRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
         width: '100%',
-        maxWidth: 380,
-        backgroundColor: colors.background.surface,
-        borderRadius: borderRadius['2xl'],
-        borderWidth: 1,
-        borderColor: colors.slate[200],
-        paddingVertical: spacing.md,
-        paddingHorizontal: spacing.lg,
-        ...shadows.card,
+        maxWidth: 320,
+        marginBottom: 8,
     },
     brandRow: {
         flexDirection: 'row',
         alignItems: 'center',
+        gap: 6,
     },
-    brandBadge: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: 'rgba(2, 132, 199, 0.1)',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: spacing.sm,
+    pulseDot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: colors.primary[500],
     },
-    appTitle: {
-        fontSize: typography.fontSize.sm + 1,
+    brandLabel: {
+        fontSize: 10,
         fontWeight: '800',
         color: colors.text.primary,
-        letterSpacing: 0.8,
+        letterSpacing: 1.2,
     },
-    appSubtitle: {
-        fontSize: 11,
-        color: colors.text.muted,
-        marginTop: 1,
-    },
-    skipTag: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: 'rgba(2, 132, 199, 0.08)',
-        paddingVertical: 5,
-        paddingHorizontal: spacing.md,
-        borderRadius: borderRadius.full,
-        gap: 3,
-    },
-    skipText: {
-        fontSize: 11,
+    statusLabel: {
+        fontSize: 9,
         fontWeight: '700',
         color: colors.primary[600],
+        letterSpacing: 0.8,
+    },
+    progressTrack: {
+        width: '100%',
+        maxWidth: 320,
+        height: 3.5,
+        borderRadius: 2,
+        backgroundColor: 'rgba(2, 132, 199, 0.15)',
+        overflow: 'hidden',
+    },
+    progressBar: {
+        height: '100%',
+        borderRadius: 2,
+        backgroundColor: colors.primary[500],
+        ...shadows.glowBlue,
     },
 });
 
