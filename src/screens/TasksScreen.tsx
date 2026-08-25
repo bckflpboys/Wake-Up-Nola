@@ -40,6 +40,7 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({
         missingAlerts,
         toggleTaskStatus,
         addTask,
+        deleteTask,
         refreshTasks,
     } = useTasks();
 
@@ -196,7 +197,12 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({
                         </View>
                     ) : (
                         filteredTasks.map(task => (
-                            <TaskItem key={task.id} task={task} onToggle={() => toggleTaskStatus(task.id)} />
+                            <TaskItem
+                                key={task.id}
+                                task={task}
+                                onToggle={() => toggleTaskStatus(task.id)}
+                                onDelete={() => deleteTask(task.id)}
+                            />
                         ))
                     )}
                 </ScrollView>
@@ -277,45 +283,52 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({
     );
 };
 
-const TaskItem: React.FC<{ task: TaskAndSchedule; onToggle: () => void }> = ({ task, onToggle }) => {
+const TaskItem: React.FC<{ task: TaskAndSchedule; onToggle: () => void; onDelete: () => void }> = ({ task, onToggle, onDelete }) => {
     const isCompleted = task.status === 'completed';
 
     return (
         <Card variant="default" style={styles.taskCard}>
-            <TouchableOpacity onPress={onToggle} style={styles.taskRow} activeOpacity={0.7}>
-                <View style={[styles.checkbox, isCompleted && styles.checkboxChecked]}>
-                    {isCompleted && <Ionicons name="checkmark" size={13} color="#FFFFFF" />}
-                </View>
-
-                <View style={styles.taskInfo}>
-                    <View style={styles.taskTitleRow}>
-                        <Text style={[styles.taskTitle, isCompleted && styles.taskTitleDone]}>
-                            {task.title}
-                        </Text>
-                        {task.isMissingCheck && (
-                            <Badge label="MISSING CHECK" variant="standby" size="sm" />
-                        )}
+            <View style={styles.taskRow}>
+                <TouchableOpacity onPress={onToggle} style={styles.taskRowLeft} activeOpacity={0.7}>
+                    <View style={[styles.checkbox, isCompleted && styles.checkboxChecked]}>
+                        {isCompleted && <Ionicons name="checkmark" size={13} color="#FFFFFF" />}
                     </View>
 
-                    {task.description && (
-                        <Text style={styles.taskDesc} numberOfLines={2}>{task.description}</Text>
-                    )}
+                    <View style={styles.taskInfo}>
+                        <View style={styles.taskTitleRow}>
+                            <Text style={[styles.taskTitle, isCompleted && styles.taskTitleDone]}>
+                                {task.title}
+                            </Text>
+                            {task.isMissingCheck && (
+                                <Badge label="MISSING CHECK" variant="standby" size="sm" />
+                            )}
+                        </View>
 
-                    <View style={styles.taskMeta}>
-                        {task.dueTime && (
-                            <View style={styles.timeWrap}>
-                                <Ionicons name="time-outline" size={11} color={colors.primary[600]} />
-                                <Text style={styles.timeText}>{task.dueTime}</Text>
-                            </View>
+                        {task.description && (
+                            <Text style={styles.taskDesc} numberOfLines={2}>{task.description}</Text>
                         )}
-                        <Badge
-                            label={task.priority?.toUpperCase() || 'NORMAL'}
-                            variant={task.priority === 'high' || task.priority === 'critical' ? 'error' : 'default'}
-                            size="sm"
-                        />
+
+                        <View style={styles.taskMeta}>
+                            {task.dueTime && (
+                                <View style={styles.timeWrap}>
+                                    <Ionicons name="time-outline" size={11} color={colors.primary[600]} />
+                                    <Text style={styles.timeText}>{task.dueTime}</Text>
+                                </View>
+                            )}
+                            <Badge
+                                label={task.priority?.toUpperCase() || 'NORMAL'}
+                                variant={task.priority === 'high' || task.priority === 'critical' ? 'error' : 'default'}
+                                size="sm"
+                            />
+                        </View>
                     </View>
-                </View>
-            </TouchableOpacity>
+                </TouchableOpacity>
+
+                {/* Delete Task Button */}
+                <TouchableOpacity onPress={onDelete} style={styles.deleteTaskBtn} activeOpacity={0.7}>
+                    <Ionicons name="trash-outline" size={16} color={colors.slate[400]} />
+                </TouchableOpacity>
+            </View>
         </Card>
     );
 };
@@ -493,7 +506,17 @@ const styles = StyleSheet.create({
     },
     taskRow: {
         flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    taskRowLeft: {
+        flexDirection: 'row',
         alignItems: 'flex-start',
+        flex: 1,
+    },
+    deleteTaskBtn: {
+        padding: spacing.xs,
+        marginLeft: spacing.xs,
     },
     checkbox: {
         width: 20,

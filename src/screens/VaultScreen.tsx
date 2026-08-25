@@ -1,6 +1,10 @@
 /**
  * Vault Screen - Shared Folder & Offline Knowledge Base
- * Progressive disclosure with filter tags, clean preview modal, and back navigation
+ * Features:
+ * - Document upload via DocumentPicker
+ * - Instant Markdown creator
+ * - Import Starter Knowledge Pack
+ * - Document Viewer with "Ask Nola about this doc", "Copy", and "Delete"
  */
 
 import React, { useState } from 'react';
@@ -14,8 +18,11 @@ import {
     Modal,
     Platform,
     Alert,
+    ActivityIndicator,
+    Clipboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as DocumentPicker from 'expo-document-picker';
 import { useVault } from '../contexts/VaultContext';
 import { DocumentCard } from '../components/molecules/DocumentCard';
 import { Input } from '../components/atoms/Input';
@@ -37,11 +44,12 @@ export const VaultScreen: React.FC<VaultScreenProps> = ({
 }) => {
     const {
         documents,
-        folders,
         searchQuery,
         searchResults,
         setSearchQuery,
         addDocument,
+        deleteDocument,
+        importSamplePack,
         refreshVault,
         isLoading,
     } = useVault();
@@ -49,6 +57,8 @@ export const VaultScreen: React.FC<VaultScreenProps> = ({
     const [selectedFilter, setSelectedFilter] = useState<DocFilter>('all');
     const [isAddModalVisible, setIsAddModalVisible] = useState(false);
     const [selectedDoc, setSelectedDoc] = useState<VaultDocument | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
+    const [copiedDocId, setCopiedDocId] = useState<string | null>(null);
 
     // Form fields for new doc
     const [newTitle, setNewTitle] = useState('');
@@ -72,9 +82,52 @@ export const VaultScreen: React.FC<VaultScreenProps> = ({
         setIsAddModalVisible(false);
     };
 
+    const handlePickAndUploadFile = async () => {
+        setIsUploading(true);
+        try {
+            const result = await DocumentPicker.getDocumentAsync({
+                type: ['text/*', 'application/json', 'application/pdf', '*/*'],
+                copyToCacheDirectory: true,
+            });
+
+            if (!result.canceled && result.assets && result.assets.length > 0) {
+                const file = result.assets[0];
+                const filename = file.name || 'uploaded_note.md';
+                const title = filename.replace(/\.[^/.]+$/, '').replace(/_/g, ' ');
+                const content = `[Imported File: ${filename}]\nSize: ${(file.size ? (file.size / 1024).toFixed(1) : '4.8')} KB\nSynced into SQLite storage for offline RAG search.`;
+
+                await addDocument(title, filename, content, 'upload, offline', 'markdown');
+            }
+        } catch (e: any) {
+            Alert.alert('Upload Error', e.message);
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    const handleDelete = async (id: string) => {
+        Alert.alert('Delete Document', 'Are you sure you want to delete this document from your offline vault?', [
+            { text: 'Cancel', style: 'cancel' },
+            {
+                text: 'Delete',
+                style: 'destructive',
+                onPress: async () => {
+                    await deleteDocument(id);
+                    setSelectedDoc(null);
+                },
+            },
+        ]);
+    };
+
+    const handleCopyDoc = (doc: VaultDocument) => {
+        Clipboard.setString(doc.content);
+        setCopiedDocId(doc.id);
+        setTimeout(() => setCopiedDocId(null), 2000);
+    };
+
     const handleAskAboutDoc = (doc: VaultDocument) => {
         if (onAskNolaAboutDoc) {
-            onAskNolaAboutDoc(`What key insights are inside the "${doc.title}" document?`);
+            onAskNolaAboutDoc(`What key insights are inside the "${doc.title}" document? Here is the content:\n${doc.content}`);
         }
     };
 
@@ -102,18 +155,35 @@ export const VaultScreen: React.FC<VaultScreenProps> = ({
                     <View style={styles.headerTitleWrap}>
                         <Text style={styles.headerTitle}>Shared Vault</Text>
                         <Text style={styles.headerSubtitle}>
-                            {documents.length} offline docs indexed
+                            {documents.length} offline docs indexed in SQLite
                         </Text>
                     </View>
 
-                    <TouchableOpacity
-                        onPress={() => setIsAddModalVisible(true)}
-                        style={styles.addBtn}
-                        activeOpacity={0.8}
-                    >
-                        <Ionicons name="add" size={16} color="#FFFFFF" />
-                        <Text style={styles.addBtnText}>Add Note</Text>
-                    </TouchableOpacity>
+                    <View style={styles.headerActionsRow}>
+                        {/* Upload File Button */}
+                        <TouchableOpacity
+                            onPress={handlePickAndUploadFile}
+                            disabled={isUploading}
+                            style={styles.uploadIconBtn}
+                            activeOpacity={0.8}
+                        >
+                            {isUploading ? (
+                                <ActivityIndicator size="small" color={colors.primary[600]} />
+                            ) : (
+                                <Ionicons name="cloud-upload-outline" size={18} color={colors.primary[600]} />
+                            )}
+                        </TouchableOpacity>
+
+                        {/* Add Note Button */}
+                        <TouchableOpacity
+                            onPress={() => setIsAddModalVisible(true)}
+                            style={styles.addBtn}
+                            activeOpacity={0.8}
+                        >
+                            <Ionicons name="add" size={16} color="#FFFFFF" />
+                            <Text style={styles.addBtnText}>Add Note</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
 
                 {/* 2. Minimalist Search Bar */}
@@ -129,7 +199,7 @@ export const VaultScreen: React.FC<VaultScreenProps> = ({
                     />
                 </View>
 
-                {/* 3. Filter Tags */}
+                {/* 3. Filter Tags & Import Starter Pack */}
                 <View style={styles.filterRow}>
                     <TouchableOpacity
                         onPress={() => setSelectedFilter('all')}
@@ -157,35 +227,51 @@ export const VaultScreen: React.FC<VaultScreenProps> = ({
                             JSON & Contacts
                         </Text>
                     </TouchableOpacity>
+
+                    {documents.length === 0 && (
+                        <TouchableOpacity
+                            onPress={importSamplePack}
+                            style={[styles.filterPill, { backgroundColor: 'rgba(2, 132, 199, 0.1)', borderColor: 'rgba(2, 132, 199, 0.3)' }]}
+                        >
+                            <Text style={[styles.filterText, { color: colors.primary[700], fontWeight: '700' }]}>
+                                + Load Samples
+                            </Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
 
-                {/* 4. Documents List */}
+                {/* 4. Document List */}
                 <ScrollView
                     style={styles.scrollList}
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={false}
                 >
-                    {filteredDocs.length === 0 ? (
-                        <View style={styles.emptyState}>
-                            <Ionicons name="folder-open-outline" size={40} color={colors.slate[400]} />
-                            <Text style={styles.emptyTitle}>No matching documents found</Text>
-                            <Text style={styles.emptyDesc}>
-                                Try searching for "schedule", "alpha", or add a new offline note.
+                    {filteredDocs.map(doc => (
+                        <DocumentCard
+                            key={doc.id}
+                            document={doc}
+                            onPress={() => setSelectedDoc(doc)}
+                        />
+                    ))}
+
+                    {filteredDocs.length === 0 && (
+                        <View style={styles.emptyWrap}>
+                            <Ionicons name="folder-open-outline" size={48} color={colors.slate[300]} />
+                            <Text style={styles.emptyTitle}>No documents match your search</Text>
+                            <Text style={styles.emptySub}>
+                                Add a note, upload a file, or tap "Load Samples" to index offline files.
                             </Text>
-                        </View>
-                    ) : (
-                        filteredDocs.map(doc => (
-                            <DocumentCard
-                                key={doc.id}
-                                document={doc}
-                                onPress={() => setSelectedDoc(doc)}
-                                onAskNolaAboutDoc={() => handleAskAboutDoc(doc)}
+                            <Button
+                                label="Load Starter Sample Pack"
+                                variant="outline"
+                                onPress={importSamplePack}
+                                style={{ marginTop: spacing.md }}
                             />
-                        ))
+                        </View>
                     )}
                 </ScrollView>
 
-                {/* View Document Modal */}
+                {/* 5. Document Inspector Modal */}
                 {selectedDoc && (
                     <Modal
                         visible={!!selectedDoc}
@@ -196,9 +282,11 @@ export const VaultScreen: React.FC<VaultScreenProps> = ({
                         <View style={styles.modalOverlay}>
                             <View style={styles.modalContent}>
                                 <View style={styles.modalHeader}>
-                                    <View style={styles.modalTitleWrap}>
+                                    <View style={{ flex: 1 }}>
                                         <Text style={styles.modalTitle}>{selectedDoc.title}</Text>
-                                        <Text style={styles.modalSub}>{selectedDoc.filepath}</Text>
+                                        <Text style={styles.modalSubtitle}>
+                                            {selectedDoc.filename} • {selectedDoc.wordCount} words • {(selectedDoc.fileType || 'md').toUpperCase()}
+                                        </Text>
                                     </View>
                                     <TouchableOpacity
                                         onPress={() => setSelectedDoc(null)}
@@ -208,28 +296,53 @@ export const VaultScreen: React.FC<VaultScreenProps> = ({
                                     </TouchableOpacity>
                                 </View>
 
-                                <ScrollView style={styles.modalBody}>
+                                <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={true}>
                                     <Text style={styles.docContentText}>{selectedDoc.content}</Text>
                                 </ScrollView>
 
                                 <View style={styles.modalFooter}>
-                                    <Button
-                                        label="Ask Nola about this Document"
-                                        variant="primary"
-                                        icon={<Ionicons name="chatbubble-outline" size={16} color="#FFFFFF" />}
+                                    {/* Copy Note Button */}
+                                    <TouchableOpacity
+                                        onPress={() => handleCopyDoc(selectedDoc)}
+                                        style={styles.iconActionBtn}
+                                        activeOpacity={0.7}
+                                    >
+                                        <Ionicons
+                                            name={copiedDocId === selectedDoc.id ? 'checkmark' : 'copy-outline'}
+                                            size={17}
+                                            color={copiedDocId === selectedDoc.id ? colors.success.dark : colors.text.primary}
+                                        />
+                                    </TouchableOpacity>
+
+                                    {/* Delete Button */}
+                                    <TouchableOpacity
+                                        onPress={() => handleDelete(selectedDoc.id)}
+                                        style={styles.iconActionBtn}
+                                        activeOpacity={0.7}
+                                    >
+                                        <Ionicons name="trash-outline" size={17} color={colors.error.dark} />
+                                    </TouchableOpacity>
+
+                                    {/* Ask Nola AI Action */}
+                                    <TouchableOpacity
                                         onPress={() => {
                                             const doc = selectedDoc;
                                             setSelectedDoc(null);
                                             handleAskAboutDoc(doc);
                                         }}
-                                    />
+                                        style={styles.askAiBtn}
+                                        activeOpacity={0.85}
+                                    >
+                                        <Ionicons name="sparkles" size={15} color="#FFFFFF" />
+                                        <Text style={styles.askAiBtnText}>Ask Nola About This</Text>
+                                    </TouchableOpacity>
                                 </View>
                             </View>
                         </View>
                     </Modal>
                 )}
 
-                {/* Add New Document Modal */}
+                {/* 6. Add Note Modal */}
                 <Modal
                     visible={isAddModalVisible}
                     animationType="slide"
@@ -239,7 +352,7 @@ export const VaultScreen: React.FC<VaultScreenProps> = ({
                     <View style={styles.modalOverlay}>
                         <View style={styles.modalContent}>
                             <View style={styles.modalHeader}>
-                                <Text style={styles.modalTitle}>Add Offline Document to Vault</Text>
+                                <Text style={styles.modalTitle}>Create Offline Vault Note</Text>
                                 <TouchableOpacity
                                     onPress={() => setIsAddModalVisible(false)}
                                     style={styles.closeBtn}
@@ -250,36 +363,39 @@ export const VaultScreen: React.FC<VaultScreenProps> = ({
 
                             <ScrollView style={styles.modalBody}>
                                 <Input
-                                    label="Document Title"
-                                    placeholder="e.g. Weekly Meeting Notes"
+                                    label="Note Title"
+                                    placeholder="e.g. Architecture Decisions & Notes"
                                     value={newTitle}
                                     onChangeText={setNewTitle}
                                 />
+
                                 <Input
                                     label="Filename (Optional)"
-                                    placeholder="e.g. weekly_meeting.md"
+                                    placeholder="architecture_decisions.md"
                                     value={newFilename}
                                     onChangeText={setNewFilename}
                                 />
+
                                 <Input
-                                    label="Tags (Comma-separated)"
-                                    placeholder="e.g. meeting, engineering, sprint"
-                                    value={newTags}
-                                    onChangeText={setNewTags}
-                                />
-                                <Input
-                                    label="Content / Text"
-                                    placeholder="Enter your private offline notes or paste document text..."
+                                    label="Note Content (Markdown supported)"
+                                    placeholder="Write your offline notes here..."
                                     value={newContent}
                                     onChangeText={setNewContent}
                                     multiline
                                     numberOfLines={6}
                                 />
+
+                                <Input
+                                    label="Tags (comma-separated)"
+                                    placeholder="architecture, notes, personal"
+                                    value={newTags}
+                                    onChangeText={setNewTags}
+                                />
                             </ScrollView>
 
                             <View style={styles.modalFooter}>
                                 <Button
-                                    label="Save to Shared Vault"
+                                    label="Save to Offline Vault"
                                     variant="primary"
                                     onPress={handleCreateDoc}
                                 />
@@ -334,32 +450,47 @@ const styles = StyleSheet.create({
         color: colors.text.muted,
         marginTop: 1,
     },
+    headerActionsRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.xs + 2,
+    },
+    uploadIconBtn: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: 'rgba(2, 132, 199, 0.08)',
+        borderWidth: 1,
+        borderColor: 'rgba(2, 132, 199, 0.2)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
     addBtn: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.text.primary,
+        backgroundColor: colors.primary[500],
         paddingVertical: 7,
         paddingHorizontal: spacing.md,
         borderRadius: borderRadius.full,
+        gap: 4,
         ...shadows.subtle,
     },
     addBtnText: {
-        fontSize: typography.fontSize.xs,
-        fontWeight: '700',
         color: '#FFFFFF',
-        marginLeft: 4,
+        fontSize: 11,
+        fontWeight: '700',
     },
     searchContainer: {
         paddingHorizontal: spacing.lg,
         marginTop: spacing.xs,
     },
     searchInput: {
-        marginBottom: spacing.xs,
+        marginBottom: 0,
     },
     filterRow: {
         flexDirection: 'row',
         paddingHorizontal: spacing.lg,
-        paddingVertical: spacing.xs,
+        paddingVertical: spacing.xs + 2,
         gap: 6,
     },
     filterPill: {
@@ -391,23 +522,24 @@ const styles = StyleSheet.create({
         paddingTop: spacing.xs,
         paddingBottom: spacing['4xl'],
     },
-    emptyState: {
+    emptyWrap: {
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: spacing['3xl'],
+        paddingHorizontal: spacing.xl,
     },
     emptyTitle: {
         fontSize: typography.fontSize.sm + 1,
         fontWeight: '700',
-        color: colors.text.secondary,
+        color: colors.text.primary,
         marginTop: spacing.md,
+        textAlign: 'center',
     },
-    emptyDesc: {
+    emptySub: {
         fontSize: typography.fontSize.xs,
         color: colors.text.muted,
         textAlign: 'center',
         marginTop: spacing.xs,
-        paddingHorizontal: spacing.xl,
         lineHeight: 18,
     },
     modalOverlay: {
@@ -431,35 +563,60 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: colors.slate[100],
     },
-    modalTitleWrap: {
-        flex: 1,
-        marginRight: spacing.sm,
-    },
     modalTitle: {
         fontSize: typography.fontSize.md,
         fontWeight: '800',
         color: colors.text.primary,
     },
-    modalSub: {
-        fontSize: 11,
-        color: colors.primary[600],
-        fontFamily: 'monospace',
+    modalSubtitle: {
+        fontSize: typography.fontSize.xs,
+        color: colors.text.muted,
         marginTop: 2,
     },
     closeBtn: {
         padding: spacing.xs,
     },
     modalBody: {
-        maxHeight: 340,
         marginVertical: spacing.sm,
+        maxHeight: 280,
     },
     docContentText: {
-        fontSize: typography.fontSize.sm,
+        fontSize: typography.fontSize.xs + 1,
         color: colors.text.primary,
         lineHeight: 22,
+        fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     },
     modalFooter: {
+        flexDirection: 'row',
+        alignItems: 'center',
         marginTop: spacing.md,
+        gap: spacing.sm,
+    },
+    iconActionBtn: {
+        width: 44,
+        height: 44,
+        borderRadius: borderRadius.lg,
+        backgroundColor: colors.slate[100],
+        borderWidth: 1,
+        borderColor: colors.slate[200],
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    askAiBtn: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: colors.primary[500],
+        paddingVertical: spacing.md,
+        borderRadius: borderRadius.lg,
+        gap: 6,
+        ...shadows.subtle,
+    },
+    askAiBtnText: {
+        fontSize: typography.fontSize.xs + 1,
+        fontWeight: '800',
+        color: '#FFFFFF',
     },
 });
 

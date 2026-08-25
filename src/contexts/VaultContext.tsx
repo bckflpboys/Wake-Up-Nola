@@ -14,6 +14,8 @@ interface VaultContextType {
     searchResults: VaultDocument[];
     setSearchQuery: (query: string) => void;
     addDocument: (title: string, filename: string, content: string, tags?: string, fileType?: string) => Promise<VaultDocument>;
+    deleteDocument: (id: string) => Promise<void>;
+    importSamplePack: () => Promise<void>;
     refreshVault: () => Promise<void>;
 }
 
@@ -72,6 +74,16 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return newDoc;
     };
 
+    const deleteDocument = async (id: string): Promise<void> => {
+        await vaultService.deleteDocument(id);
+        await refreshVault();
+    };
+
+    const importSamplePack = async (): Promise<void> => {
+        await vaultService.importSamplePack();
+        await refreshVault();
+    };
+
     return (
         <VaultContext.Provider
             value={{
@@ -82,6 +94,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 searchResults,
                 setSearchQuery,
                 addDocument,
+                deleteDocument,
+                importSamplePack,
                 refreshVault,
             }}
         >
@@ -97,3 +111,5 @@ export const useVault = () => {
     }
     return context;
 };
+
+export default VaultContext;

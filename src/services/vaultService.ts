@@ -34,7 +34,7 @@ const DEFAULT_DOCUMENTS: VaultDocument[] = [
         filename: 'project_alpha_notes.md',
         filepath: 'assets/shared_vault/project_alpha_notes.md',
         fileType: 'markdown',
-        content: 'Goal: Build Nola assistant with offline SLMs. Decompose complex tasks into micro-steps so Gemma 2B or Qwen 1.5B never fail. Data stays 100% on device in shared vault. Offline RAG uses SQLite full-text search with fast keyword indexing.',
+        content: 'Goal: Build Nola assistant with offline SLMs. Decompose complex tasks into micro-steps so Gemma 4 or Qwen 3.5 never fail. Data stays 100% on device in shared vault. Offline RAG uses SQLite full-text search with fast keyword indexing.',
         wordCount: 36,
         tags: 'project,architecture,ai',
         isIndexed: true,
@@ -47,7 +47,7 @@ const DEFAULT_DOCUMENTS: VaultDocument[] = [
         filename: 'quick_contacts.json',
         filepath: 'assets/shared_vault/quick_contacts.json',
         fileType: 'json',
-        content: 'Sarah Jenkins (Lead Engineer - sarah.j@techinnovate.io - Prefers async messages. Working on local inference kernels), Marcus Vance (Product Designer - marcus.v@designcraft.co - Reviewed Standby glowing pulse ring), Dr. Elena Rostova (ML Research Advisor - elena.r@aimodel-labs.org - Suggested fine-tuned Gemma 2B for structured JSON output).',
+        content: 'Sarah Jenkins (Lead Engineer - sarah.j@techinnovate.io - Prefers async messages. Working on local inference kernels), Marcus Vance (Product Designer - marcus.v@designcraft.co - Reviewed Standby glowing pulse ring), Dr. Elena Rostova (ML Research Advisor - elena.r@aimodel-labs.org - Suggested fine-tuned Gemma 4 for structured JSON output).',
         wordCount: 42,
         tags: 'contacts,team',
         isIndexed: true,
@@ -142,22 +142,33 @@ class VaultService {
         return newDoc;
     }
 
+    public async deleteDocument(id: string): Promise<boolean> {
+        if (expoDb) {
+            try {
+                expoDb.execSync(`DELETE FROM vault_documents WHERE id = '${id}';`);
+            } catch (err) {
+                console.warn('Error deleting doc from SQLite:', err);
+            }
+        }
+        this.inMemoryDocs = this.inMemoryDocs.filter(d => d.id !== id);
+        return true;
+    }
+
+    public async importSamplePack(): Promise<void> {
+        for (const doc of DEFAULT_DOCUMENTS) {
+            await this.addDocument(doc.title, doc.filename, doc.content, doc.tags || '', doc.fileType || 'markdown');
+        }
+    }
+
     public async getSharedFolders(): Promise<LocalSharedFolder[]> {
         const docs = await this.getAllDocuments();
         return [
             {
-                id: 'folder-shared-vault',
-                name: 'Shared Vault (Main)',
+                id: 'folder-main',
+                name: 'assets/shared_vault',
                 path: 'assets/shared_vault',
                 documentCount: docs.length,
-                lastSyncedAt: 'Just now (Offline Synced)',
-            },
-            {
-                id: 'folder-models',
-                name: 'On-Device Models Vault',
-                path: 'assets/models',
-                documentCount: 4,
-                lastSyncedAt: 'Local Storage Ready',
+                lastSyncedAt: new Date().toISOString(),
             },
         ];
     }

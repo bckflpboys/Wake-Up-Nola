@@ -1,8 +1,10 @@
 /**
- * Chat Screen - Wake Up Nola Main Workspace
- * Seamless Roll-in / Roll-out between Composer Mode and Navigation Mode
- * When composing: Bottom navigation rolls away, input bar docks cleanly at the bottom.
- * When browsing: Bottom navigation is visible with a compact floating chat pill.
+ * Chat Screen - Main Workspace & Standby Agent
+ * Features:
+ * - AttachmentModal (Document upload, Camera capture, Gallery picker, Instant note)
+ * - VoiceStudioModal (Live animated equalizer, recording, speech-to-text)
+ * - Rich Multi-Modal Message Bubbles with code copy and file preview
+ * - Roll-in / Roll-out composer with single bottom bar
  */
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -10,8 +12,8 @@ import {
     View,
     Text,
     StyleSheet,
-    ScrollView,
     TextInput,
+    ScrollView,
     TouchableOpacity,
     SafeAreaView,
     KeyboardAvoidingView,
@@ -20,6 +22,7 @@ import {
     Modal,
     Pressable,
     Keyboard,
+    Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNola } from '../contexts/NolaContext';
@@ -27,6 +30,8 @@ import { useVault } from '../contexts/VaultContext';
 import { StepExecutionViewer } from '../components/molecules/StepExecutionViewer';
 import { RichMessageBubble } from '../components/molecules/RichMessageBubble';
 import { EmbroideredBrandLogo } from '../components/atoms/EmbroideredBrandLogo';
+import { AttachmentModal } from '../components/molecules/AttachmentModal';
+import { VoiceStudioModal } from '../components/molecules/VoiceStudioModal';
 import { colors, spacing, typography, borderRadius, shadows } from '../theme';
 
 interface ChatScreenProps {
@@ -44,13 +49,12 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
         activeModel,
         availableModels,
         setActiveModel,
-        messages,
+        isListening,
         isProcessing,
         activeSteps,
+        messages,
         sendMessage,
         clearChatHistory,
-        isListening,
-        startVoiceTrigger,
     } = useNola();
 
     const { documents } = useVault();
@@ -58,12 +62,13 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
     const [input, setInput] = useState('');
     const [showModelPicker, setShowModelPicker] = useState(false);
     const [showSkillsModal, setShowSkillsModal] = useState(false);
-    const [thinkingExpanded, setThinkingExpanded] = useState<Record<string, boolean>>({});
+    const [showAttachmentModal, setShowAttachmentModal] = useState(false);
+    const [showVoiceModal, setShowVoiceModal] = useState(false);
+    const [attachedFiles, setAttachedFiles] = useState<Array<{ name: string; type: string; uri?: string; content?: string }>>([]);
 
     const inputRef = useRef<TextInput>(null);
     const scrollViewRef = useRef<ScrollView>(null);
 
-    // Has the user started a conversation yet?
     const hasUserMessages = messages.some(m => m.role === 'user');
 
     useEffect(() => {
@@ -72,7 +77,6 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
         }
     }, [messages, activeSteps, hasUserMessages]);
 
-    // Auto-enter composer mode when input text is entered
     const handleInputChange = (text: string) => {
         setInput(text);
         if (text.length > 0 && !isComposing) {
@@ -90,11 +94,18 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
     };
 
     const handleSend = async () => {
-        if (!input.trim() || isProcessing) return;
-        const text = input.trim();
+        if ((!input.trim() && attachedFiles.length === 0) || isProcessing) return;
+
+        let fullPrompt = input.trim();
+        if (attachedFiles.length > 0) {
+            const filesContext = attachedFiles.map(f => `[ATTACHMENT: ${f.name}]\n${f.content || ''}`).join('\n\n');
+            fullPrompt = `${fullPrompt}\n\n${filesContext}`.trim();
+        }
+
         setInput('');
+        setAttachedFiles([]);
         try {
-            await sendMessage(text);
+            await sendMessage(fullPrompt);
         } catch (e) {
             console.warn('Send message error:', e);
         }
@@ -106,11 +117,13 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
         await sendMessage(prompt);
     };
 
-    const toggleThinking = (id: string) => {
-        setThinkingExpanded(prev => ({
-            ...prev,
-            [id]: !prev[id],
-        }));
+    const handleAttachFile = (fileInfo: { name: string; content?: string; type: string; uri?: string }) => {
+        setAttachedFiles(prev => [...prev, fileInfo]);
+        onToggleCompose?.(true);
+    };
+
+    const handleRemoveAttachment = (index: number) => {
+        setAttachedFiles(prev => prev.filter((_, i) => i !== index));
     };
 
     return (
@@ -134,18 +147,20 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
 
                     {/* Right Action Cluster */}
                     <View style={styles.rightNavCluster}>
+                        {/* Voice Studio Trigger */}
                         <TouchableOpacity
-                            onPress={startVoiceTrigger}
+                            onPress={() => setShowVoiceModal(true)}
                             style={[styles.iconCircleBtn, isListening && styles.iconCircleBtnActive]}
                             activeOpacity={0.7}
                         >
                             <Ionicons
-                                name={isListening ? 'mic' : 'play-outline'}
-                                size={15}
-                                color={isListening ? colors.primary[500] : colors.text.primary}
+                                name="mic"
+                                size={16}
+                                color={isListening ? colors.error.dark : colors.text.primary}
                             />
                         </TouchableOpacity>
 
+                        {/* Clear / New Chat */}
                         <TouchableOpacity
                             onPress={clearChatHistory}
                             style={styles.iconCircleBtn}
@@ -154,6 +169,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
                             <Ionicons name="add-outline" size={17} color={colors.text.primary} />
                         </TouchableOpacity>
 
+                        {/* Settings & Connectors Hub */}
                         <TouchableOpacity
                             onPress={() => onNavigateTab?.('connectors')}
                             style={styles.iconCircleBtn}
@@ -179,22 +195,34 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        onPress={() => onNavigateTab?.('connectors')}
-                        style={styles.connectorsPill}
+                        onPress={() => setShowModelPicker(true)}
+                        style={styles.contextPill}
                         activeOpacity={0.8}
                     >
-                        <Ionicons name="document-text-outline" size={13} color={colors.primary[600]} />
-                        <Text style={styles.connectorsPillText}>Open Hub</Text>
+                        <Ionicons name="hardware-chip-outline" size={13} color={colors.primary[600]} />
+                        <Text style={styles.contextPillText} numberOfLines={1}>
+                            {activeModel.name.split(' ')[0]}
+                        </Text>
+                        <Ionicons name="chevron-down" size={10} color={colors.text.secondary} style={{ marginLeft: 2 }} />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        onPress={() => onNavigateTab?.('tasks')}
+                        style={styles.contextPill}
+                        activeOpacity={0.8}
+                    >
+                        <Ionicons name="checkbox-outline" size={13} color={colors.accent[600]} />
+                        <Text style={styles.contextPillText}>Agenda</Text>
                     </TouchableOpacity>
                 </View>
 
-                {/* 3. Main Workspace Scroll */}
+                {/* 3. Main Body: Scrollable Flow */}
                 <ScrollView
                     ref={scrollViewRef}
                     style={styles.scrollArea}
                     contentContainerStyle={[
                         styles.scrollContent,
-                        !hasUserMessages && styles.heroScrollContent,
+                        !hasUserMessages && styles.scrollContentHero,
                     ]}
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
@@ -225,6 +253,21 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
                                     multiline
                                 />
 
+                                {/* Attached Files Chips in Hero Card */}
+                                {attachedFiles.length > 0 && (
+                                    <View style={styles.attachmentPillRow}>
+                                        {attachedFiles.map((file, idx) => (
+                                            <View key={`hero-att-${idx}`} style={styles.attachedChip}>
+                                                <Ionicons name="document-attach-outline" size={12} color={colors.primary[600]} />
+                                                <Text style={styles.attachedChipText} numberOfLines={1}>{file.name}</Text>
+                                                <TouchableOpacity onPress={() => handleRemoveAttachment(idx)}>
+                                                    <Ionicons name="close-circle" size={14} color={colors.slate[400]} />
+                                                </TouchableOpacity>
+                                            </View>
+                                        ))}
+                                    </View>
+                                )}
+
                                 <View style={styles.heroCardBottomRow}>
                                     <View style={styles.heroLeftActions}>
                                         <TouchableOpacity
@@ -236,11 +279,11 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
                                         </TouchableOpacity>
 
                                         <TouchableOpacity
-                                            onPress={() => handleQuickPrompt('Break down this goal into failsafe micro-steps')}
+                                            onPress={() => setShowVoiceModal(true)}
                                             style={styles.microActionBtn}
                                             activeOpacity={0.7}
                                         >
-                                            <Ionicons name="bulb-outline" size={15} color={colors.primary[600]} />
+                                            <Ionicons name="mic-outline" size={15} color={colors.primary[600]} />
                                         </TouchableOpacity>
 
                                         {/* Model Dropdown Pill */}
@@ -256,8 +299,9 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
                                             <Ionicons name="chevron-down" size={11} color={colors.slate[400]} />
                                         </TouchableOpacity>
 
+                                        {/* Attach Media / File Button */}
                                         <TouchableOpacity
-                                            onPress={() => onNavigateTab?.('vault')}
+                                            onPress={() => setShowAttachmentModal(true)}
                                             style={styles.microActionBtn}
                                             activeOpacity={0.7}
                                         >
@@ -268,10 +312,10 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
                                     {/* Send Orb Button */}
                                     <TouchableOpacity
                                         onPress={handleSend}
-                                        disabled={!input.trim() || isProcessing}
+                                        disabled={(!input.trim() && attachedFiles.length === 0) || isProcessing}
                                         style={[
                                             styles.heroSendOrb,
-                                            (!input.trim() || isProcessing) && styles.heroSendOrbDisabled,
+                                            ((!input.trim() && attachedFiles.length === 0) || isProcessing) && styles.heroSendOrbDisabled,
                                         ]}
                                         activeOpacity={0.8}
                                     >
@@ -348,34 +392,53 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
                             {/* Live Step Execution Indicator */}
                             {isProcessing && (
                                 <View style={styles.liveStepBox}>
-                                    <StepExecutionViewer steps={activeSteps} isProcessing={true} />
+                                    <View style={styles.liveStepHeader}>
+                                        <ActivityIndicator size="small" color={colors.primary[500]} />
+                                        <Text style={styles.liveStepTitle}>
+                                            Thinking ({activeModel.name})...
+                                        </Text>
+                                    </View>
+                                    <StepExecutionViewer steps={activeSteps} />
                                 </View>
                             )}
                         </View>
                     )}
                 </ScrollView>
 
-                {/* 4. DYNAMIC BOTTOM COMPOSER / TRIGGER */}
+                {/* 4. Single Dynamic Bottom Interface */}
                 {hasUserMessages && (
                     <>
                         {isComposing ? (
-                            /* === ACTIVE COMPOSER (Bottom Navigation is Hidden) === */
-                            <View style={styles.activeComposerBar}>
-                                <View style={styles.composerHeaderRow}>
-                                    {/* Roll-Away Button: Collapses composer & brings back Navbar */}
+                            /* === COMPOSER DOCKED (Bottom Nav Rolls Away) === */
+                            <View style={styles.composerWrapper}>
+                                {/* Attached File Chips */}
+                                {attachedFiles.length > 0 && (
+                                    <View style={styles.composerAttachmentRow}>
+                                        {attachedFiles.map((file, idx) => (
+                                            <View key={`comp-att-${idx}`} style={styles.attachedChip}>
+                                                <Ionicons name="document-attach-outline" size={12} color={colors.primary[600]} />
+                                                <Text style={styles.attachedChipText} numberOfLines={1}>{file.name}</Text>
+                                                <TouchableOpacity onPress={() => handleRemoveAttachment(idx)}>
+                                                    <Ionicons name="close-circle" size={14} color={colors.slate[400]} />
+                                                </TouchableOpacity>
+                                            </View>
+                                        ))}
+                                    </View>
+                                )}
+
+                                <View style={styles.composerTopBar}>
                                     <TouchableOpacity
                                         onPress={handleCollapseComposer}
-                                        style={styles.rollAwayBtn}
+                                        style={styles.rollDownBtn}
                                         activeOpacity={0.7}
                                     >
-                                        <Ionicons name="chevron-down" size={16} color={colors.text.secondary} />
-                                        <Text style={styles.rollAwayText}>Tabs</Text>
+                                        <Ionicons name="chevron-down" size={14} color={colors.primary[600]} />
+                                        <Text style={styles.rollDownText}>Tabs</Text>
                                     </TouchableOpacity>
 
-                                    {/* Model selector chip inside composer header */}
                                     <TouchableOpacity
                                         onPress={() => setShowModelPicker(true)}
-                                        style={styles.composerModelChip}
+                                        style={styles.composerModelTag}
                                         activeOpacity={0.8}
                                     >
                                         <Ionicons name="hardware-chip-outline" size={12} color={colors.primary[600]} />
@@ -398,7 +461,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
 
                                     {/* Input Capsule */}
                                     <View style={styles.composerInputCapsule}>
-                                        <TouchableOpacity onPress={() => onNavigateTab?.('vault')}>
+                                        <TouchableOpacity onPress={() => setShowAttachmentModal(true)}>
                                             <Ionicons name="attach-outline" size={17} color={colors.slate[400]} />
                                         </TouchableOpacity>
                                         <TextInput
@@ -413,13 +476,22 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
                                         />
                                     </View>
 
+                                    {/* Voice Button */}
+                                    <TouchableOpacity
+                                        onPress={() => setShowVoiceModal(true)}
+                                        style={styles.composerIconBtn}
+                                        activeOpacity={0.7}
+                                    >
+                                        <Ionicons name="mic-outline" size={17} color={colors.slate[600]} />
+                                    </TouchableOpacity>
+
                                     {/* Send Orb Button */}
                                     <TouchableOpacity
                                         onPress={handleSend}
-                                        disabled={!input.trim() || isProcessing}
+                                        disabled={(!input.trim() && attachedFiles.length === 0) || isProcessing}
                                         style={[
                                             styles.composerSendOrb,
-                                            (!input.trim() || isProcessing) && styles.composerSendOrbDisabled,
+                                            ((!input.trim() && attachedFiles.length === 0) || isProcessing) && styles.composerSendOrbDisabled,
                                         ]}
                                         activeOpacity={0.8}
                                     >
@@ -451,7 +523,23 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
                     </>
                 )}
 
-                {/* 5. Bottom Sheet Model Selector Modal */}
+                {/* 5. Attachment Picker Modal */}
+                <AttachmentModal
+                    visible={showAttachmentModal}
+                    onClose={() => setShowAttachmentModal(false)}
+                    onAttachFile={handleAttachFile}
+                    onOpenVoiceStudio={() => setShowVoiceModal(true)}
+                    onOpenCreateNote={() => onNavigateTab?.('vault')}
+                />
+
+                {/* 6. Voice Recording Studio Modal */}
+                <VoiceStudioModal
+                    visible={showVoiceModal}
+                    onClose={() => setShowVoiceModal(false)}
+                    onSendVoicePrompt={handleQuickPrompt}
+                />
+
+                {/* 7. Bottom Sheet Model Selector Modal */}
                 <Modal
                     visible={showModelPicker}
                     animationType="fade"
@@ -493,8 +581,8 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
                                                     <Text style={[styles.modelOptionName, isSelected && styles.modelOptionNameActive]}>
                                                         {m.name}
                                                     </Text>
-                                                    <Text style={styles.modelOptionSub}>
-                                                        {m.sizeMb > 0 ? `${m.sizeMb} MB • On-Device` : m.type}
+                                                    <Text style={styles.modelOptionDesc}>
+                                                        {m.type === 'cloud' ? 'OpenRouter API' : m.type === 'lan-desktop' ? 'Desktop WiFi' : `${m.sizeMb} MB • On-Device`}
                                                     </Text>
                                                 </View>
                                             </View>
@@ -509,7 +597,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
                     </Pressable>
                 </Modal>
 
-                {/* 6. Skills & Plugins Modal */}
+                {/* 8. Skills & Plugins Modal */}
                 <Modal
                     visible={showSkillsModal}
                     animationType="fade"
@@ -609,23 +697,8 @@ const styles = StyleSheet.create({
         ...shadows.subtle,
     },
     iconCircleBtnActive: {
-        borderColor: colors.primary[500],
-        backgroundColor: 'rgba(2, 132, 199, 0.08)',
-    },
-    brandPill: {
-        backgroundColor: colors.background.surface,
-        borderWidth: 1,
-        borderColor: colors.slate[200],
-        paddingHorizontal: spacing.lg,
-        paddingVertical: 7,
-        borderRadius: borderRadius.full,
-        ...shadows.subtle,
-    },
-    brandPillText: {
-        fontSize: typography.fontSize.xs,
-        fontWeight: '800',
-        color: colors.text.primary,
-        letterSpacing: 1.2,
+        borderColor: colors.error.dark,
+        backgroundColor: 'rgba(239, 68, 68, 0.08)',
     },
     rightNavCluster: {
         flexDirection: 'row',
@@ -649,37 +722,23 @@ const styles = StyleSheet.create({
         borderRadius: borderRadius.full,
         paddingVertical: 6,
         paddingHorizontal: spacing.md,
-        gap: 6,
+        gap: 5,
         ...shadows.subtle,
     },
     contextPillText: {
-        fontSize: typography.fontSize.xs,
+        fontSize: 11,
         fontWeight: '700',
         color: colors.text.primary,
     },
     contextPillDivider: {
         color: colors.slate[300],
-        fontSize: typography.fontSize.xs,
+        fontSize: 10,
+        marginHorizontal: 1,
     },
     contextPillSub: {
-        fontSize: typography.fontSize.xs,
-        color: colors.text.secondary,
-    },
-    connectorsPill: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: 'rgba(2, 132, 199, 0.08)',
-        borderWidth: 1,
-        borderColor: 'rgba(2, 132, 199, 0.25)',
-        borderRadius: borderRadius.full,
-        paddingVertical: 6,
-        paddingHorizontal: spacing.md,
-        gap: 5,
-    },
-    connectorsPillText: {
-        fontSize: typography.fontSize.xs,
-        fontWeight: '700',
-        color: colors.primary[600],
+        fontSize: 10,
+        fontWeight: '600',
+        color: colors.text.muted,
     },
 
     // 3. Scroll Area
@@ -689,38 +748,39 @@ const styles = StyleSheet.create({
     scrollContent: {
         paddingHorizontal: spacing.lg,
         paddingTop: spacing.xs,
+        paddingBottom: spacing['4xl'],
+    },
+    scrollContentHero: {
+        flexGrow: 1,
+        justifyContent: 'center',
         paddingBottom: spacing['2xl'],
     },
-    heroScrollContent: {
-        justifyContent: 'center',
-        paddingTop: spacing.md,
-    },
 
-    // Hero Section
+    // Hero Mode
     heroWrapper: {
         alignItems: 'center',
-        width: '100%',
+        paddingVertical: spacing.sm,
     },
     heroOrbContainer: {
-        width: 80,
-        height: 80,
+        width: 88,
+        height: 88,
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: spacing.md,
     },
     heroOrbGlow: {
         position: 'absolute',
-        width: 90,
-        height: 90,
-        borderRadius: 45,
-        backgroundColor: 'rgba(2, 132, 199, 0.08)',
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        backgroundColor: 'rgba(2, 132, 199, 0.12)',
     },
     heroOrbCircle: {
-        width: 72,
-        height: 72,
-        borderRadius: 36,
+        width: 76,
+        height: 76,
+        borderRadius: 38,
         backgroundColor: colors.background.surface,
-        borderWidth: 1,
+        borderWidth: 1.5,
         borderColor: colors.slate[200],
         alignItems: 'center',
         justifyContent: 'center',
@@ -730,29 +790,48 @@ const styles = StyleSheet.create({
         fontSize: typography.fontSize['3xl'],
         fontWeight: '800',
         color: colors.text.primary,
-        letterSpacing: -0.6,
         textAlign: 'center',
         lineHeight: 34,
-        marginBottom: spacing.xl,
+        letterSpacing: -0.6,
+        marginBottom: spacing.lg,
     },
-
-    // Floating Hero Card
     heroCard: {
         width: '100%',
         backgroundColor: colors.background.surface,
         borderRadius: borderRadius['2xl'],
-        padding: spacing.md,
         borderWidth: 1,
         borderColor: colors.slate[200],
+        padding: spacing.md,
         ...shadows.card,
-        marginBottom: spacing.xl,
+        marginBottom: spacing.lg,
     },
     heroTextInput: {
+        minHeight: 64,
         fontSize: typography.fontSize.sm,
         color: colors.text.primary,
-        minHeight: 52,
         textAlignVertical: 'top',
-        lineHeight: 20,
+        paddingTop: 0,
+    },
+    attachmentPillRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 6,
+        marginVertical: 6,
+    },
+    attachedChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(2, 132, 199, 0.1)',
+        borderRadius: borderRadius.full,
+        paddingVertical: 3,
+        paddingHorizontal: spacing.sm,
+        gap: 4,
+    },
+    attachedChipText: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: colors.primary[700],
+        maxWidth: 140,
     },
     heroCardBottomRow: {
         flexDirection: 'row',
@@ -772,7 +851,7 @@ const styles = StyleSheet.create({
         width: 32,
         height: 32,
         borderRadius: 16,
-        backgroundColor: colors.slate[50],
+        backgroundColor: colors.background.canvas,
         borderWidth: 1,
         borderColor: colors.slate[200],
         alignItems: 'center',
@@ -781,45 +860,43 @@ const styles = StyleSheet.create({
     heroModelDropdownPill: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.slate[50],
+        backgroundColor: colors.background.canvas,
         borderWidth: 1,
         borderColor: colors.slate[200],
-        paddingHorizontal: spacing.sm,
-        paddingVertical: 5,
         borderRadius: borderRadius.full,
+        paddingVertical: 5,
+        paddingHorizontal: spacing.sm + 2,
         gap: 4,
     },
     heroModelDropdownText: {
         fontSize: 11,
-        fontWeight: '700',
-        color: colors.text.primary,
-        maxWidth: 90,
+        fontWeight: '600',
+        color: colors.text.secondary,
+        maxWidth: 70,
     },
     heroSendOrb: {
-        width: 34,
-        height: 34,
-        borderRadius: 17,
+        width: 36,
+        height: 36,
+        borderRadius: 18,
         backgroundColor: colors.text.primary,
         alignItems: 'center',
         justifyContent: 'center',
         ...shadows.subtle,
     },
     heroSendOrbDisabled: {
-        backgroundColor: colors.slate[300],
+        opacity: 0.35,
     },
-
-    // Colorful Action Chips
     chipsContainer: {
         flexDirection: 'row',
         flexWrap: 'wrap',
         justifyContent: 'center',
         gap: spacing.sm,
-        maxWidth: 340,
+        width: '100%',
     },
     actionChip: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 8,
+        paddingVertical: 9,
         paddingHorizontal: spacing.md,
         borderRadius: borderRadius.full,
         borderWidth: 1,
@@ -827,160 +904,86 @@ const styles = StyleSheet.create({
         ...shadows.subtle,
     },
     chipText: {
-        fontSize: typography.fontSize.xs,
-        fontWeight: '700',
         color: '#FFFFFF',
+        fontSize: 11,
+        fontWeight: '700',
+        letterSpacing: 0.2,
     },
-
-    // Active Chat Stream
     chatFlowContainer: {
         paddingTop: spacing.xs,
     },
-    userBubbleRow: {
-        alignItems: 'flex-end',
-        marginVertical: spacing.xs + 2,
-    },
-    userBubble: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: colors.primary[500],
-        paddingVertical: 9,
-        paddingHorizontal: spacing.lg,
-        borderRadius: borderRadius.full,
-        borderBottomRightRadius: 6,
-        maxWidth: '85%',
-        ...shadows.subtle,
-    },
-    userBubbleText: {
-        fontSize: typography.fontSize.sm,
-        fontWeight: '600',
-        color: '#FFFFFF',
-        marginRight: 6,
-    },
-    userIcon: {
-        marginLeft: 2,
-    },
-    assistantCardRow: {
-        marginVertical: spacing.xs + 2,
-    },
-    assistantCard: {
+    liveStepBox: {
         backgroundColor: colors.background.surface,
         borderRadius: borderRadius.xl,
-        borderTopLeftRadius: 6,
-        padding: spacing.md,
         borderWidth: 1,
         borderColor: colors.slate[200],
-        ...shadows.card,
+        padding: spacing.md,
+        marginTop: spacing.sm,
+        ...shadows.subtle,
     },
-    reasoningHeader: {
+    liveStepHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.slate[50],
-        paddingVertical: 6,
-        paddingHorizontal: spacing.sm + 2,
-        borderRadius: borderRadius.md,
-        marginBottom: spacing.sm,
-        gap: 6,
+        gap: spacing.sm,
+        marginBottom: spacing.xs,
     },
-    reasoningIconBadge: {
-        width: 20,
-        height: 20,
-        borderRadius: 10,
-        backgroundColor: 'rgba(2, 132, 199, 0.1)',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    reasoningTitle: {
+    liveStepTitle: {
         fontSize: typography.fontSize.xs,
-        fontWeight: '700',
-        color: colors.text.primary,
-        flex: 1,
-    },
-    reasoningViewText: {
-        fontSize: 10,
         fontWeight: '700',
         color: colors.primary[600],
     },
-    reasoningExpandedBox: {
-        marginBottom: spacing.sm,
-    },
-    assistantText: {
-        fontSize: typography.fontSize.sm,
-        color: colors.text.primary,
-        lineHeight: 22,
-    },
-    assistantFooter: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginTop: spacing.md,
-        paddingTop: spacing.xs,
-        borderTopWidth: 1,
-        borderTopColor: colors.slate[100],
-    },
-    footerModelText: {
-        fontSize: 11,
-        color: colors.text.muted,
-        fontWeight: '600',
-    },
-    footerLatencyWrap: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 3,
-    },
-    footerLatencyText: {
-        fontSize: 10,
-        color: colors.standby[600],
-        fontWeight: '700',
-    },
-    liveStepBox: {
-        marginVertical: spacing.sm,
-    },
 
-    // 4A. ACTIVE COMPOSER BAR (When composing, Navbar is hidden)
-    activeComposerBar: {
+    // 4. Composer Mode
+    composerWrapper: {
         backgroundColor: colors.background.surface,
-        paddingHorizontal: spacing.lg,
-        paddingTop: spacing.xs,
-        paddingBottom: Platform.OS === 'ios' ? spacing.lg : spacing.sm,
         borderTopWidth: 1,
         borderTopColor: colors.slate[200],
+        paddingHorizontal: spacing.lg,
+        paddingTop: spacing.xs + 2,
+        paddingBottom: Platform.OS === 'ios' ? spacing.xl : spacing.md,
         ...shadows.card,
     },
-    composerHeaderRow: {
+    composerAttachmentRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 6,
+        marginBottom: 6,
+    },
+    composerTopBar: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginBottom: spacing.xs,
-        paddingHorizontal: 2,
+        marginBottom: 6,
     },
-    rollAwayBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: colors.slate[100],
-        paddingVertical: 3,
-        paddingHorizontal: spacing.sm,
-        borderRadius: borderRadius.full,
-        gap: 2,
-    },
-    rollAwayText: {
-        fontSize: 10,
-        fontWeight: '700',
-        color: colors.text.secondary,
-    },
-    composerModelChip: {
+    rollDownBtn: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: 'rgba(2, 132, 199, 0.08)',
+        paddingVertical: 4,
+        paddingHorizontal: spacing.sm + 2,
+        borderRadius: borderRadius.full,
+        gap: 4,
+    },
+    rollDownText: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: colors.primary[600],
+    },
+    composerModelTag: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: colors.background.canvas,
+        borderWidth: 1,
+        borderColor: colors.slate[200],
+        borderRadius: borderRadius.full,
         paddingVertical: 3,
         paddingHorizontal: spacing.sm,
-        borderRadius: borderRadius.full,
         gap: 4,
     },
     composerModelText: {
         fontSize: 10,
-        fontWeight: '700',
-        color: colors.primary[600],
+        fontWeight: '600',
+        color: colors.text.secondary,
     },
     composerInputRow: {
         flexDirection: 'row',
@@ -988,10 +991,10 @@ const styles = StyleSheet.create({
         gap: spacing.xs + 2,
     },
     composerIconBtn: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: colors.slate[50],
+        width: 38,
+        height: 38,
+        borderRadius: 19,
+        backgroundColor: colors.background.canvas,
         borderWidth: 1,
         borderColor: colors.slate[200],
         alignItems: 'center',
@@ -1001,68 +1004,68 @@ const styles = StyleSheet.create({
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.slate[50],
+        backgroundColor: colors.background.canvas,
         borderRadius: borderRadius.full,
-        paddingHorizontal: spacing.md,
         borderWidth: 1,
         borderColor: colors.slate[200],
-        minHeight: 40,
-        maxHeight: 90,
+        paddingHorizontal: spacing.md,
+        paddingVertical: Platform.OS === 'ios' ? 8 : 4,
+        gap: 8,
     },
     composerTextInput: {
         flex: 1,
-        fontSize: typography.fontSize.sm,
+        fontSize: typography.fontSize.xs + 1,
         color: colors.text.primary,
-        marginLeft: spacing.xs,
         maxHeight: 80,
     },
     composerSendOrb: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
+        width: 38,
+        height: 38,
+        borderRadius: 19,
         backgroundColor: colors.text.primary,
         alignItems: 'center',
         justifyContent: 'center',
         ...shadows.subtle,
     },
     composerSendOrbDisabled: {
-        backgroundColor: colors.slate[300],
+        opacity: 0.35,
     },
 
-    // 4B. COMPACT FLOATING CHAT TRIGGER (When browsing, Navbar is visible)
+    // Compact Trigger Bar
     compactTriggerWrapper: {
         paddingHorizontal: spacing.lg,
-        paddingBottom: spacing.xs,
+        paddingBottom: spacing.sm,
+        backgroundColor: colors.background.canvas,
     },
     compactTriggerBar: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: colors.background.surface,
-        borderRadius: borderRadius.full,
-        paddingVertical: 8,
-        paddingHorizontal: spacing.md,
         borderWidth: 1,
         borderColor: colors.slate[200],
+        borderRadius: borderRadius.full,
+        paddingVertical: 10,
+        paddingHorizontal: spacing.lg,
         ...shadows.subtle,
     },
     compactTriggerText: {
-        fontSize: typography.fontSize.xs,
-        color: colors.slate[400],
-        marginLeft: spacing.xs,
         flex: 1,
+        fontSize: typography.fontSize.xs + 1,
+        color: colors.text.muted,
+        marginLeft: spacing.sm,
     },
     compactModelTag: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.slate[100],
-        paddingVertical: 2,
+        backgroundColor: colors.background.canvas,
+        paddingVertical: 3,
         paddingHorizontal: spacing.sm,
         borderRadius: borderRadius.full,
-        gap: 3,
+        gap: 4,
     },
     compactModelText: {
         fontSize: 10,
-        fontWeight: '700',
+        fontWeight: '600',
         color: colors.text.secondary,
     },
 
@@ -1077,6 +1080,7 @@ const styles = StyleSheet.create({
         borderTopLeftRadius: borderRadius['2xl'],
         borderTopRightRadius: borderRadius['2xl'],
         padding: spacing.lg,
+        maxHeight: '70%',
     },
     modelModalHeader: {
         flexDirection: 'row',
@@ -1088,7 +1092,7 @@ const styles = StyleSheet.create({
         borderBottomColor: colors.slate[100],
     },
     modelModalTitle: {
-        fontSize: typography.fontSize.lg,
+        fontSize: typography.fontSize.md,
         fontWeight: '800',
         color: colors.text.primary,
     },
@@ -1096,27 +1100,28 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingVertical: spacing.sm + 2,
+        paddingVertical: spacing.md,
         paddingHorizontal: spacing.sm,
         borderRadius: borderRadius.lg,
         marginBottom: 4,
     },
     modelOptionRowActive: {
-        backgroundColor: 'rgba(2, 132, 199, 0.08)',
+        backgroundColor: 'rgba(2, 132, 199, 0.06)',
     },
     modelOptionLeft: {
         flexDirection: 'row',
         alignItems: 'center',
+        flex: 1,
     },
     modelOptionName: {
-        fontSize: typography.fontSize.sm,
+        fontSize: typography.fontSize.xs + 1,
         fontWeight: '700',
         color: colors.text.primary,
     },
     modelOptionNameActive: {
         color: colors.primary[600],
     },
-    modelOptionSub: {
+    modelOptionDesc: {
         fontSize: 11,
         color: colors.text.muted,
         marginTop: 1,
@@ -1129,14 +1134,14 @@ const styles = StyleSheet.create({
         borderBottomColor: colors.slate[100],
     },
     skillTitle: {
-        fontSize: typography.fontSize.sm,
+        fontSize: typography.fontSize.xs + 1,
         fontWeight: '700',
         color: colors.text.primary,
     },
     skillDesc: {
         fontSize: 11,
         color: colors.text.muted,
-        marginTop: 2,
+        marginTop: 1,
     },
 });
 
