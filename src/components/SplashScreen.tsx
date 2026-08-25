@@ -74,7 +74,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
                             <Ionicons name="sparkles" size={14} color={colors.primary[500]} />
                         </View>
                         <View style={{ flex: 1 }}>
-                            <Text style={styles.appTitle}>WAKE UP NOLA</Text>
+                            <Text style={styles.appTitle}>WAKE UP NOLA!</Text>
                             <Text style={styles.appSubtitle}>Offline-First Micro-Agent OS</Text>
                         </View>
                         <View style={styles.engineTag}>

@@ -23,7 +23,7 @@ export const generateEmbroideryHtml = () => `
   <script>
     const WORDS = [
       {
-        word: "WAKE",
+        word: "Wake",
         cx: 0.44, cy: 0.28, scale: 0.28, rotDeg: -4,
         fill: [0.42, 0.62, 0.92],
         ink: [0.09, 0.09, 0.1],
@@ -31,7 +31,7 @@ export const generateEmbroideryHtml = () => `
         stitchDeg: 70,
       },
       {
-        word: "UP",
+        word: "Up",
         cx: 0.58, cy: 0.48, scale: 0.25, rotDeg: 3,
         fill: [0.96, 0.82, 0.36],
         ink: [0.09, 0.09, 0.1],
@@ -39,7 +39,7 @@ export const generateEmbroideryHtml = () => `
         stitchDeg: 20,
       },
       {
-        word: "NOLA",
+        word: "Nola!",
         cx: 0.48, cy: 0.68, scale: 0.30, rotDeg: -2,
         fill: [0.9, 0.62, 0.82],
         ink: [0.09, 0.09, 0.1],
