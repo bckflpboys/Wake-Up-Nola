@@ -1,6 +1,6 @@
 /**
  * Connectors Screen - Device Apps & API Integration Hub
- * Progressive disclosure with categorized tabs, clean cards, and back navigation
+ * Progressive disclosure with live scanning, real synchronization, and detail inspection
  */
 
 import React, { useState } from 'react';
@@ -41,6 +41,7 @@ export const ConnectorsScreen: React.FC<ConnectorsScreenProps> = ({
     const [scanMessage, setScanMessage] = useState('');
     const [selectedConnector, setSelectedConnector] = useState<DeviceConnector | null>(null);
     const [isAddModalVisible, setIsAddModalVisible] = useState(false);
+    const [syncingId, setSyncingId] = useState<string | null>(null);
 
     // Form fields for new custom API
     const [apiName, setApiName] = useState('');
@@ -57,6 +58,19 @@ export const ConnectorsScreen: React.FC<ConnectorsScreenProps> = ({
         } finally {
             setIsScanning(false);
             setScanMessage('');
+        }
+    };
+
+    const handleSyncSingle = async (id: string) => {
+        setSyncingId(id);
+        try {
+            const updatedConn = await connectorService.syncSingleConnector(id);
+            setConnectors([...connectorService.getConnectors()]);
+            if (selectedConnector && selectedConnector.id === id) {
+                setSelectedConnector(updatedConn);
+            }
+        } finally {
+            setSyncingId(null);
         }
     };
 
@@ -130,7 +144,7 @@ export const ConnectorsScreen: React.FC<ConnectorsScreenProps> = ({
                         <View style={styles.scanTextWrap}>
                             <Text style={styles.scanTitle}>Deep Device Scanner</Text>
                             <Text style={styles.scanDesc}>
-                                Scan local storage, calendar, contacts, and WiFi LAN endpoints.
+                                Real-time sync across SQLite storage, calendar, contacts, LAN, and GitHub.
                             </Text>
                         </View>
                     </View>
@@ -144,10 +158,10 @@ export const ConnectorsScreen: React.FC<ConnectorsScreenProps> = ({
                         {isScanning ? (
                             <ActivityIndicator size="small" color="#FFFFFF" />
                         ) : (
-                            <Ionicons name="sparkles" size={15} color="#FFFFFF" />
+                            <Ionicons name="sync-outline" size={15} color="#FFFFFF" />
                         )}
                         <Text style={styles.scanBtnText}>
-                            {isScanning ? 'Scanning Everything...' : 'Scan & Sync Device'}
+                            {isScanning ? 'Scanning Everything...' : 'Deep Scan & Sync All'}
                         </Text>
                     </TouchableOpacity>
 
@@ -203,6 +217,7 @@ export const ConnectorsScreen: React.FC<ConnectorsScreenProps> = ({
                 >
                     {filteredConnectors.map(conn => {
                         const isConnected = conn.status === 'connected';
+                        const isSyncing = syncingId === conn.id;
 
                         return (
                             <Card
@@ -229,17 +244,38 @@ export const ConnectorsScreen: React.FC<ConnectorsScreenProps> = ({
                                                 size="sm"
                                             />
                                         </View>
-                                        <Text style={styles.connDesc} numberOfLines={1}>{conn.description}</Text>
-                                        <Text style={styles.accessScope}>🔒 {conn.accessScope}</Text>
+                                        <Text style={styles.connDesc} numberOfLines={2}>{conn.description}</Text>
+                                        <View style={styles.metaRow}>
+                                            <Text style={styles.accessScope}>🔒 {conn.accessScope}</Text>
+                                            {conn.lastSynced && (
+                                                <Text style={styles.lastSyncedText}>• {conn.lastSynced}</Text>
+                                            )}
+                                        </View>
                                     </View>
 
-                                    <TouchableOpacity
-                                        onPress={() => handleToggle(conn.id)}
-                                        style={[styles.toggleSwitch, isConnected ? styles.toggleOn : styles.toggleOff]}
-                                        activeOpacity={0.8}
-                                    >
-                                        <View style={[styles.toggleKnob, isConnected ? styles.knobOn : styles.knobOff]} />
-                                    </TouchableOpacity>
+                                    {/* Action Buttons: 1-Tap Sync + Toggle */}
+                                    <View style={styles.cardActionCluster}>
+                                        <TouchableOpacity
+                                            onPress={() => handleSyncSingle(conn.id)}
+                                            disabled={isSyncing}
+                                            style={styles.microSyncBtn}
+                                            activeOpacity={0.7}
+                                        >
+                                            {isSyncing ? (
+                                                <ActivityIndicator size="small" color={colors.primary[600]} />
+                                            ) : (
+                                                <Ionicons name="refresh-outline" size={16} color={colors.primary[600]} />
+                                            )}
+                                        </TouchableOpacity>
+
+                                        <TouchableOpacity
+                                            onPress={() => handleToggle(conn.id)}
+                                            style={[styles.toggleSwitch, isConnected ? styles.toggleOn : styles.toggleOff]}
+                                            activeOpacity={0.8}
+                                        >
+                                            <View style={[styles.toggleKnob, isConnected ? styles.knobOn : styles.knobOff]} />
+                                        </TouchableOpacity>
+                                    </View>
                                 </View>
                             </Card>
                         );
@@ -265,7 +301,7 @@ export const ConnectorsScreen: React.FC<ConnectorsScreenProps> = ({
                                                 color={colors.primary[600]}
                                             />
                                         </View>
-                                        <View>
+                                        <View style={{ flex: 1 }}>
                                             <Text style={styles.modalTitle}>{selectedConnector.name}</Text>
                                             <Text style={styles.modalSubtitle}>{selectedConnector.accessScope}</Text>
                                         </View>
@@ -279,28 +315,64 @@ export const ConnectorsScreen: React.FC<ConnectorsScreenProps> = ({
                                 </View>
 
                                 <ScrollView style={styles.modalBody}>
-                                    <Text style={styles.detailSectionLabel}>Description</Text>
-                                    <Text style={styles.detailText}>{selectedConnector.description}</Text>
-
-                                    <Text style={styles.detailSectionLabel}>Access Scope & Privacy</Text>
-                                    <View style={styles.privacyBox}>
-                                        <Ionicons name="shield-checkmark-outline" size={16} color={colors.success.main} />
-                                        <Text style={styles.privacyText}>
-                                            Private on-device access only. No sensitive data is transferred to external third-party cloud servers.
-                                        </Text>
+                                    <View style={styles.detailSection}>
+                                        <Text style={styles.detailLabel}>OVERVIEW & DATA ACCESS</Text>
+                                        <Text style={styles.detailText}>{selectedConnector.description}</Text>
                                     </View>
 
-                                    {selectedConnector.lastSynced && (
-                                        <Text style={styles.lastSyncText}>Status: {selectedConnector.lastSynced}</Text>
-                                    )}
+                                    <View style={styles.detailGrid}>
+                                        <View style={styles.detailGridItem}>
+                                            <Text style={styles.gridItemLabel}>Category</Text>
+                                            <Text style={styles.gridItemValue}>
+                                                {selectedConnector.category.replace('_', ' ').toUpperCase()}
+                                            </Text>
+                                        </View>
+
+                                        <View style={styles.detailGridItem}>
+                                            <Text style={styles.gridItemLabel}>Status</Text>
+                                            <Text
+                                                style={[
+                                                    styles.gridItemValue,
+                                                    { color: selectedConnector.status === 'connected' ? colors.success.dark : colors.slate[600] },
+                                                ]}
+                                            >
+                                                {selectedConnector.status.toUpperCase()}
+                                            </Text>
+                                        </View>
+
+                                        <View style={styles.detailGridItem}>
+                                            <Text style={styles.gridItemLabel}>Items Tracked</Text>
+                                            <Text style={styles.gridItemValue}>{selectedConnector.itemCount ?? 0}</Text>
+                                        </View>
+
+                                        <View style={styles.detailGridItem}>
+                                            <Text style={styles.gridItemLabel}>Last Synced</Text>
+                                            <Text style={styles.gridItemValue}>{selectedConnector.lastSynced || 'Standby'}</Text>
+                                        </View>
+                                    </View>
                                 </ScrollView>
 
                                 <View style={styles.modalFooter}>
-                                    <Button
-                                        label={selectedConnector.status === 'connected' ? 'Disconnect System' : 'Connect & Enable'}
-                                        variant={selectedConnector.status === 'connected' ? 'outline' : 'primary'}
-                                        onPress={() => handleToggle(selectedConnector.id)}
-                                    />
+                                    <TouchableOpacity
+                                        onPress={() => handleSyncSingle(selectedConnector.id)}
+                                        style={styles.syncModalBtn}
+                                        activeOpacity={0.8}
+                                    >
+                                        {syncingId === selectedConnector.id ? (
+                                            <ActivityIndicator size="small" color={colors.primary[700]} />
+                                        ) : (
+                                            <Ionicons name="refresh" size={16} color={colors.primary[700]} />
+                                        )}
+                                        <Text style={styles.syncModalBtnText}>Sync Now</Text>
+                                    </TouchableOpacity>
+
+                                    <View style={{ flex: 1 }}>
+                                        <Button
+                                            label={selectedConnector.status === 'connected' ? 'Disconnect System' : 'Connect System'}
+                                            variant={selectedConnector.status === 'connected' ? 'outline' : 'primary'}
+                                            onPress={() => handleToggle(selectedConnector.id)}
+                                        />
+                                    </View>
                                 </View>
                             </View>
                         </View>
@@ -317,7 +389,7 @@ export const ConnectorsScreen: React.FC<ConnectorsScreenProps> = ({
                     <View style={styles.modalOverlay}>
                         <View style={styles.modalContent}>
                             <View style={styles.modalHeader}>
-                                <Text style={styles.modalTitle}>Connect Custom App or API</Text>
+                                <Text style={styles.modalTitle}>Connect Custom API / Webhook</Text>
                                 <TouchableOpacity
                                     onPress={() => setIsAddModalVisible(false)}
                                     style={styles.closeBtn}
@@ -328,20 +400,22 @@ export const ConnectorsScreen: React.FC<ConnectorsScreenProps> = ({
 
                             <ScrollView style={styles.modalBody}>
                                 <Input
-                                    label="Connector Name"
-                                    placeholder="e.g. Local LM Studio or Custom Webhook"
+                                    label="Connector / Service Name"
+                                    placeholder="e.g. Local Home Assistant API"
                                     value={apiName}
                                     onChangeText={setApiName}
                                 />
+
                                 <Input
                                     label="Endpoint URL"
-                                    placeholder="e.g. http://192.168.1.50:1234/v1"
+                                    placeholder="https://api.mydevice.local/v1"
                                     value={apiUrl}
                                     onChangeText={setApiUrl}
                                 />
+
                                 <Input
                                     label="API Key / Token (Optional)"
-                                    placeholder="Bearer token or leave blank for local LAN"
+                                    placeholder="Bearer token or secret..."
                                     value={apiKey}
                                     onChangeText={setApiKey}
                                     secureTextEntry
@@ -350,7 +424,7 @@ export const ConnectorsScreen: React.FC<ConnectorsScreenProps> = ({
 
                             <View style={styles.modalFooter}>
                                 <Button
-                                    label="Save and Connect"
+                                    label="Save & Index Connector"
                                     variant="primary"
                                     onPress={handleAddCustomApi}
                                 />
@@ -412,13 +486,12 @@ const styles = StyleSheet.create({
         paddingVertical: 7,
         paddingHorizontal: spacing.md,
         borderRadius: borderRadius.full,
-        ...shadows.subtle,
+        gap: 4,
     },
     addApiText: {
-        fontSize: typography.fontSize.xs,
-        fontWeight: '700',
         color: '#FFFFFF',
-        marginLeft: 4,
+        fontSize: 11,
+        fontWeight: '700',
     },
     scanBanner: {
         marginHorizontal: spacing.lg,
@@ -428,7 +501,7 @@ const styles = StyleSheet.create({
         padding: spacing.md,
         borderWidth: 1,
         borderColor: colors.slate[200],
-        ...shadows.card,
+        ...shadows.subtle,
     },
     scanContentWrap: {
         flexDirection: 'row',
@@ -436,19 +509,19 @@ const styles = StyleSheet.create({
         marginBottom: spacing.sm,
     },
     scanIconBox: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: 'rgba(2, 132, 199, 0.08)',
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: 'rgba(2, 132, 199, 0.1)',
         alignItems: 'center',
         justifyContent: 'center',
-        marginRight: spacing.sm,
+        marginRight: spacing.md,
     },
     scanTextWrap: {
         flex: 1,
     },
     scanTitle: {
-        fontSize: typography.fontSize.sm + 1,
+        fontSize: typography.fontSize.sm,
         fontWeight: '700',
         color: colors.text.primary,
     },
@@ -463,25 +536,25 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: colors.primary[500],
-        paddingVertical: spacing.sm + 1,
+        paddingVertical: 9,
         borderRadius: borderRadius.lg,
-        ...shadows.glowBlue,
+        gap: 6,
+        ...shadows.subtle,
     },
     scanButtonDisabled: {
-        backgroundColor: colors.slate[400],
+        opacity: 0.7,
     },
     scanBtnText: {
-        fontSize: typography.fontSize.xs + 1,
-        fontWeight: '700',
         color: '#FFFFFF',
-        marginLeft: 6,
+        fontWeight: '700',
+        fontSize: typography.fontSize.xs + 1,
     },
     scanStepText: {
-        fontSize: typography.fontSize.xs,
-        color: colors.primary[600],
+        fontSize: 11,
+        color: colors.primary[700],
         fontWeight: '600',
         textAlign: 'center',
-        marginTop: spacing.xs,
+        marginTop: 6,
     },
     filterPillsRow: {
         flexDirection: 'row',
@@ -519,11 +592,8 @@ const styles = StyleSheet.create({
         paddingBottom: spacing['4xl'],
     },
     connectorCard: {
-        marginBottom: spacing.xs + 4,
-        backgroundColor: colors.background.surface,
-        borderWidth: 1,
-        borderColor: colors.slate[200],
-        ...shadows.subtle,
+        marginBottom: spacing.sm,
+        padding: spacing.md,
     },
     cardHeader: {
         flexDirection: 'row',
@@ -532,10 +602,10 @@ const styles = StyleSheet.create({
     iconWrap: {
         width: 38,
         height: 38,
-        borderRadius: borderRadius.md,
+        borderRadius: 12,
         alignItems: 'center',
         justifyContent: 'center',
-        marginRight: spacing.sm,
+        marginRight: spacing.md,
     },
     cardInfo: {
         flex: 1,
@@ -552,34 +622,61 @@ const styles = StyleSheet.create({
         color: colors.text.primary,
     },
     connDesc: {
-        fontSize: typography.fontSize.xs,
-        color: colors.text.secondary,
-        marginTop: 1,
+        fontSize: 11,
+        color: colors.text.muted,
+        lineHeight: 15,
+        marginVertical: 2,
+    },
+    metaRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: 4,
+        marginTop: 2,
     },
     accessScope: {
         fontSize: 10,
-        color: colors.primary[600],
         fontWeight: '600',
-        marginTop: 3,
+        color: colors.slate[500],
+    },
+    lastSyncedText: {
+        fontSize: 10,
+        fontWeight: '600',
+        color: colors.primary[700],
+    },
+    cardActionCluster: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginLeft: spacing.xs,
+    },
+    microSyncBtn: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: 'rgba(2, 132, 199, 0.08)',
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     toggleSwitch: {
-        width: 40,
-        height: 22,
-        borderRadius: 11,
+        width: 44,
+        height: 24,
+        borderRadius: 12,
         padding: 2,
-        marginLeft: spacing.sm,
+        justifyContent: 'center',
     },
     toggleOn: {
-        backgroundColor: colors.success.main,
+        backgroundColor: colors.primary[500],
     },
     toggleOff: {
         backgroundColor: colors.slate[300],
     },
     toggleKnob: {
-        width: 18,
-        height: 18,
-        borderRadius: 9,
+        width: 20,
+        height: 20,
+        borderRadius: 10,
         backgroundColor: '#FFFFFF',
+        ...shadows.subtle,
     },
     knobOn: {
         alignSelf: 'flex-end',
@@ -619,55 +716,77 @@ const styles = StyleSheet.create({
         color: colors.text.primary,
     },
     modalSubtitle: {
-        fontSize: 11,
-        color: colors.primary[600],
-        fontWeight: '600',
+        fontSize: typography.fontSize.xs,
+        color: colors.text.muted,
         marginTop: 1,
     },
     closeBtn: {
         padding: spacing.xs,
     },
     modalBody: {
-        maxHeight: 340,
         marginVertical: spacing.sm,
     },
-    detailSectionLabel: {
-        fontSize: typography.fontSize.xs,
+    detailSection: {
+        marginBottom: spacing.md,
+    },
+    detailLabel: {
+        fontSize: 10,
         fontWeight: '700',
-        color: colors.text.muted,
-        textTransform: 'uppercase',
-        marginTop: spacing.sm,
-        marginBottom: 4,
+        color: colors.slate[400],
+        letterSpacing: 0.8,
+        marginBottom: spacing.xs,
     },
     detailText: {
-        fontSize: typography.fontSize.sm,
+        fontSize: typography.fontSize.xs + 1,
         color: colors.text.primary,
         lineHeight: 20,
     },
-    privacyBox: {
+    detailGrid: {
         flexDirection: 'row',
-        alignItems: 'flex-start',
+        flexWrap: 'wrap',
+        gap: spacing.sm,
+        marginTop: spacing.xs,
+    },
+    detailGridItem: {
+        width: '48%',
         backgroundColor: colors.slate[50],
         padding: spacing.sm + 2,
-        borderRadius: borderRadius.md,
+        borderRadius: borderRadius.lg,
         borderWidth: 1,
         borderColor: colors.slate[200],
-        marginTop: spacing.xs,
-        gap: spacing.xs,
     },
-    privacyText: {
-        fontSize: typography.fontSize.xs,
-        color: colors.text.secondary,
-        flex: 1,
-        lineHeight: 16,
-    },
-    lastSyncText: {
-        fontSize: 11,
+    gridItemLabel: {
+        fontSize: 10,
         color: colors.text.muted,
-        marginTop: spacing.md,
+        fontWeight: '600',
+        marginBottom: 2,
+    },
+    gridItemValue: {
+        fontSize: typography.fontSize.xs + 1,
+        fontWeight: '700',
+        color: colors.text.primary,
     },
     modalFooter: {
+        flexDirection: 'row',
+        alignItems: 'center',
         marginTop: spacing.md,
+        gap: spacing.sm,
+    },
+    syncModalBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(2, 132, 199, 0.1)',
+        paddingVertical: spacing.md,
+        paddingHorizontal: spacing.md,
+        borderRadius: borderRadius.lg,
+        borderWidth: 1,
+        borderColor: 'rgba(2, 132, 199, 0.3)',
+        gap: 4,
+    },
+    syncModalBtnText: {
+        fontSize: typography.fontSize.xs + 1,
+        fontWeight: '700',
+        color: colors.primary[700],
     },
 });
 
