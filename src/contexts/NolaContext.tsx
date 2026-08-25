@@ -57,8 +57,15 @@ export const NolaProvider: React.FC<{ children: React.ReactNode }> = ({ children
         {
             id: 'welcome-1',
             role: 'assistant',
-            content: '👋 **Wake Up Nola is ready.**\n\nI am your offline-first personal AI assistant, running small models on-device.\n\nTry asking me:\n• *"What am I missing today?"*\n• *"Summarize Project Alpha notes from my shared folder"*\n• *"Who is the lead engineer in my contacts?"*',
-            modelUsed: 'Google Gemma 2 (2B)',
+            content: '👋 **Wake Up Nola is online & ready.**\n\nI am your offline-first personal AI assistant running **Gemma 4 E2B** on-device.\n\n[AUDIO: Daily Briefing Audio Clip]\n\n[FILE: project_alpha_notes.md]\n\nHere is your active on-device inference setup:\n```typescript\nimport { aiEngine } from "wake-up-nola";\n\n// Fast sub-1.5GB mobile SLM\nconst response = await aiEngine.generate({\n  model: "gemma-4-e2b",\n  context: "offline_vault",\n  temperature: 0.7\n});\n```\n\nAsk me anything or tap any quick action below to begin!',
+            modelUsed: 'Google Gemma 4 (E2B)',
+            latencyMs: 380,
+            steps: [
+                { step: 1, title: 'Inspect local storage & vault files', status: 'complete', detail: '3 documents indexed' },
+                { step: 2, title: 'Scan calendar & missing follow-ups', status: 'complete', detail: '1 flagged check found' },
+                { step: 3, title: 'Verify on-device SLM weights', status: 'complete', detail: 'Gemma 4 E2B cached in RAM' },
+                { step: 4, title: 'Synthesize interactive assistant workspace', status: 'complete', detail: 'Standby watchdog active' },
+            ],
             createdAt: new Date().toISOString(),
         },
     ]);

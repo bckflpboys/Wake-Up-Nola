@@ -25,6 +25,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNola } from '../contexts/NolaContext';
 import { useVault } from '../contexts/VaultContext';
 import { StepExecutionViewer } from '../components/molecules/StepExecutionViewer';
+import { RichMessageBubble } from '../components/molecules/RichMessageBubble';
 import { colors, spacing, typography, borderRadius, shadows } from '../theme';
 
 interface ChatScreenProps {
@@ -335,74 +336,15 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
                     ) : (
                         /* === ACTIVE CONVERSATION STREAM === */
                         <View style={styles.chatFlowContainer}>
-                            {messages.map((msg, idx) => {
-                                const isUser = msg.role === 'user';
-                                const isExpanded = thinkingExpanded[msg.id] || false;
-
-                                if (isUser) {
-                                    return (
-                                        <View key={msg.id || idx} style={styles.userBubbleRow}>
-                                            <View style={styles.userBubble}>
-                                                <Text style={styles.userBubbleText}>{msg.content}</Text>
-                                                <Ionicons name="keypad-outline" size={12} color="#FFFFFF" style={styles.userIcon} />
-                                            </View>
-                                        </View>
-                                    );
-                                }
-
-                                return (
-                                    <View key={msg.id || idx} style={styles.assistantCardRow}>
-                                        <View style={styles.assistantCard}>
-                                            {/* Collapsible Reasoning Header */}
-                                            {msg.steps && msg.steps.length > 0 && (
-                                                <TouchableOpacity
-                                                    onPress={() => toggleThinking(msg.id)}
-                                                    style={styles.reasoningHeader}
-                                                    activeOpacity={0.7}
-                                                >
-                                                    <View style={styles.reasoningIconBadge}>
-                                                        <Ionicons name="bulb" size={12} color={colors.primary[500]} />
-                                                    </View>
-                                                    <Text style={styles.reasoningTitle} numberOfLines={1}>
-                                                        User just asked...
-                                                    </Text>
-                                                    <Text style={styles.reasoningViewText}>
-                                                        {isExpanded ? 'HIDE' : 'VIEW'}
-                                                    </Text>
-                                                    <Ionicons
-                                                        name={isExpanded ? 'chevron-up' : 'chevron-forward'}
-                                                        size={11}
-                                                        color={colors.slate[400]}
-                                                    />
-                                                </TouchableOpacity>
-                                            )}
-
-                                            {/* Expanded Micro-Agent Steps */}
-                                            {isExpanded && msg.steps && (
-                                                <View style={styles.reasoningExpandedBox}>
-                                                    <StepExecutionViewer steps={msg.steps} />
-                                                </View>
-                                            )}
-
-                                            {/* Message Content */}
-                                            <Text style={styles.assistantText}>{msg.content}</Text>
-
-                                            {/* Card Footer */}
-                                            <View style={styles.assistantFooter}>
-                                                <Text style={styles.footerModelText}>
-                                                    {msg.modelUsed || activeModel.name}
-                                                </Text>
-                                                <View style={styles.footerLatencyWrap}>
-                                                    <Ionicons name="timer-outline" size={11} color={colors.standby[600]} />
-                                                    <Text style={styles.footerLatencyText}>
-                                                        {msg.latencyMs ? `${(msg.latencyMs / 1000).toFixed(2)}s` : '0.40s'}
-                                                    </Text>
-                                                </View>
-                                            </View>
-                                        </View>
-                                    </View>
-                                );
-                            })}
+                            {messages.map((msg, idx) => (
+                                <RichMessageBubble
+                                    key={msg.id || idx}
+                                    message={msg}
+                                    onAskAboutFile={(filename) => handleQuickPrompt(`What are the key takeaways from ${filename}?`)}
+                                    onSaveToVault={(content) => onNavigateTab?.('vault')}
+                                    onScheduleTask={(title) => onNavigateTab?.('tasks')}
+                                />
+                            ))}
 
                             {/* Live Step Execution Indicator */}
                             {isProcessing && (
