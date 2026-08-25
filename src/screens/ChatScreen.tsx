@@ -26,6 +26,7 @@ import { useNola } from '../contexts/NolaContext';
 import { useVault } from '../contexts/VaultContext';
 import { StepExecutionViewer } from '../components/molecules/StepExecutionViewer';
 import { RichMessageBubble } from '../components/molecules/RichMessageBubble';
+import { EmbroideredBrandLogo } from '../components/atoms/EmbroideredBrandLogo';
 import { colors, spacing, typography, borderRadius, shadows } from '../theme';
 
 interface ChatScreenProps {
@@ -128,10 +129,8 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
                         <Ionicons name="chevron-back" size={17} color={colors.text.primary} />
                     </TouchableOpacity>
 
-                    {/* Brand Pill */}
-                    <View style={styles.brandPill}>
-                        <Text style={styles.brandPillText}>WAKE UP NOLA</Text>
-                    </View>
+                    {/* Embroidered Brand Logo - Splash Screen Patch Style */}
+                    <EmbroideredBrandLogo size="md" />
 
                     {/* Right Action Cluster */}
                     <View style={styles.rightNavCluster}>
