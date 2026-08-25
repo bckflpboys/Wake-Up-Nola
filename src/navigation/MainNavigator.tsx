@@ -1,10 +1,10 @@
 /**
  * Main Navigator - Wake Up Nola
- * Robust back-stack history & hardware BackHandler support
+ * Manages screen back-stack and dynamic BottomNav visibility
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, BackHandler, Platform } from 'react-native';
+import { View, StyleSheet, BackHandler } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 
 import { BottomNav, TabName } from '../components/molecules/BottomNav';
@@ -18,11 +18,13 @@ import { colors } from '../theme';
 
 export const MainNavigator: React.FC = () => {
     const [history, setHistory] = useState<TabName[]>(['chat']);
+    const [isChatComposing, setIsChatComposing] = useState(false);
     const { sendMessage } = useNola();
 
     const activeTab = history[history.length - 1] || 'chat';
 
     const navigateTo = useCallback((tab: TabName) => {
+        setIsChatComposing(false);
         setHistory(prev => {
             if (prev[prev.length - 1] === tab) return prev;
             return [...prev, tab];
@@ -30,6 +32,7 @@ export const MainNavigator: React.FC = () => {
     }, []);
 
     const navigateBack = useCallback(() => {
+        setIsChatComposing(false);
         setHistory(prev => {
             if (prev.length > 1) {
                 return prev.slice(0, -1);
@@ -41,6 +44,10 @@ export const MainNavigator: React.FC = () => {
     // Handle Android hardware back button and swipe-back behavior
     useEffect(() => {
         const onBackPress = () => {
+            if (isChatComposing) {
+                setIsChatComposing(false);
+                return true; // Collapse composer first
+            }
             if (history.length > 1) {
                 navigateBack();
                 return true; // Prevent default app exit
@@ -50,10 +57,11 @@ export const MainNavigator: React.FC = () => {
 
         const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
         return () => subscription.remove();
-    }, [history, navigateBack]);
+    }, [history, isChatComposing, navigateBack]);
 
     const handleAskNolaFromVault = async (prompt: string) => {
         navigateTo('chat');
+        setIsChatComposing(true);
         try {
             await sendMessage(prompt);
         } catch (e) {
@@ -94,11 +102,15 @@ export const MainNavigator: React.FC = () => {
             default:
                 return (
                     <ChatScreen
+                        isComposing={isChatComposing}
+                        onToggleCompose={setIsChatComposing}
                         onNavigateTab={(tab) => navigateTo(tab)}
                     />
                 );
         }
     };
+
+    const shouldShowBottomNav = !isChatComposing || activeTab !== 'chat';
 
     return (
         <View style={styles.container}>
@@ -108,10 +120,12 @@ export const MainNavigator: React.FC = () => {
                 {renderScreen()}
             </View>
 
-            <BottomNav
-                activeTab={activeTab}
-                onTabChange={navigateTo}
-            />
+            {shouldShowBottomNav && (
+                <BottomNav
+                    activeTab={activeTab}
+                    onTabChange={navigateTo}
+                />
+            )}
         </View>
     );
 };

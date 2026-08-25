@@ -1,7 +1,8 @@
 /**
  * Chat Screen - Wake Up Nola Main Workspace
- * Single unified dynamic input (Hero mode when empty, cleanly docked to bottom when active)
- * Premium borders, progressive disclosure, and thoughtful typography hierarchy.
+ * Seamless Roll-in / Roll-out between Composer Mode and Navigation Mode
+ * When composing: Bottom navigation rolls away, input bar docks cleanly at the bottom.
+ * When browsing: Bottom navigation is visible with a compact floating chat pill.
  */
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -18,6 +19,7 @@ import {
     ActivityIndicator,
     Modal,
     Pressable,
+    Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNola } from '../contexts/NolaContext';
@@ -26,10 +28,16 @@ import { StepExecutionViewer } from '../components/molecules/StepExecutionViewer
 import { colors, spacing, typography, borderRadius, shadows } from '../theme';
 
 interface ChatScreenProps {
+    isComposing?: boolean;
+    onToggleCompose?: (composing: boolean) => void;
     onNavigateTab?: (tab: 'chat' | 'connectors' | 'vault' | 'tasks' | 'models') => void;
 }
 
-export const ChatScreen: React.FC<ChatScreenProps> = ({ onNavigateTab }) => {
+export const ChatScreen: React.FC<ChatScreenProps> = ({
+    isComposing = false,
+    onToggleCompose,
+    onNavigateTab,
+}) => {
     const {
         activeModel,
         availableModels,
@@ -49,6 +57,8 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onNavigateTab }) => {
     const [showModelPicker, setShowModelPicker] = useState(false);
     const [showSkillsModal, setShowSkillsModal] = useState(false);
     const [thinkingExpanded, setThinkingExpanded] = useState<Record<string, boolean>>({});
+
+    const inputRef = useRef<TextInput>(null);
     const scrollViewRef = useRef<ScrollView>(null);
 
     // Has the user started a conversation yet?
@@ -59,6 +69,23 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onNavigateTab }) => {
             scrollViewRef.current?.scrollToEnd({ animated: true });
         }
     }, [messages, activeSteps, hasUserMessages]);
+
+    // Auto-enter composer mode when input text is entered
+    const handleInputChange = (text: string) => {
+        setInput(text);
+        if (text.length > 0 && !isComposing) {
+            onToggleCompose?.(true);
+        }
+    };
+
+    const handleFocusInput = () => {
+        onToggleCompose?.(true);
+    };
+
+    const handleCollapseComposer = () => {
+        Keyboard.dismiss();
+        onToggleCompose?.(false);
+    };
 
     const handleSend = async () => {
         if (!input.trim() || isProcessing) return;
@@ -73,6 +100,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onNavigateTab }) => {
 
     const handleQuickPrompt = async (prompt: string) => {
         setInput(prompt);
+        onToggleCompose?.(true);
         await sendMessage(prompt);
     };
 
@@ -147,7 +175,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onNavigateTab }) => {
                         <Text style={styles.contextPillText}>Vault</Text>
                         <Text style={styles.contextPillDivider}>|</Text>
                         <Ionicons name="git-branch-outline" size={12} color={colors.text.secondary} />
-                        <Text style={styles.contextPillSub}>main</Text>
+                        <Text style={styles.contextPillSub}>{documents.length} docs</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -160,7 +188,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onNavigateTab }) => {
                     </TouchableOpacity>
                 </View>
 
-                {/* 3. Main Body Scroll (Hero view vs Active conversation) */}
+                {/* 3. Main Workspace Scroll */}
                 <ScrollView
                     ref={scrollViewRef}
                     style={styles.scrollArea}
@@ -169,8 +197,9 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onNavigateTab }) => {
                         !hasUserMessages && styles.heroScrollContent,
                     ]}
                     showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
                 >
-                    {/* === HERO MODE (Shown when no conversation is active) === */}
+                    {/* === HERO MODE (Initial Landing) === */}
                     {!hasUserMessages ? (
                         <View style={styles.heroWrapper}>
                             {/* Spherical Assistant Wireframe Orb */}
@@ -191,7 +220,8 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onNavigateTab }) => {
                                     placeholder="Type '/' to invoke plugins and skills or ask anything..."
                                     placeholderTextColor={colors.slate[400]}
                                     value={input}
-                                    onChangeText={setInput}
+                                    onChangeText={handleInputChange}
+                                    onFocus={handleFocusInput}
                                     multiline
                                 />
 
@@ -303,7 +333,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onNavigateTab }) => {
                             </View>
                         </View>
                     ) : (
-                        /* === ACTIVE CHAT STREAM === */
+                        /* === ACTIVE CONVERSATION STREAM === */
                         <View style={styles.chatFlowContainer}>
                             {messages.map((msg, idx) => {
                                 const isUser = msg.role === 'user';
@@ -384,72 +414,100 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onNavigateTab }) => {
                     )}
                 </ScrollView>
 
-                {/* 4. DOCKED BOTTOM INPUT BAR (Only shown when in active chat conversation) */}
+                {/* 4. DYNAMIC BOTTOM COMPOSER / TRIGGER */}
                 {hasUserMessages && (
-                    <View style={styles.dockedBottomBar}>
-                        <View style={styles.dockedInputRow}>
-                            {/* Skills / Puzzle */}
-                            <TouchableOpacity
-                                onPress={() => setShowSkillsModal(true)}
-                                style={styles.dockedIconBtn}
-                                activeOpacity={0.7}
-                            >
-                                <Ionicons name="extension-puzzle-outline" size={17} color={colors.primary[600]} />
-                            </TouchableOpacity>
+                    <>
+                        {isComposing ? (
+                            /* === ACTIVE COMPOSER (Bottom Navigation is Hidden) === */
+                            <View style={styles.activeComposerBar}>
+                                <View style={styles.composerHeaderRow}>
+                                    {/* Roll-Away Button: Collapses composer & brings back Navbar */}
+                                    <TouchableOpacity
+                                        onPress={handleCollapseComposer}
+                                        style={styles.rollAwayBtn}
+                                        activeOpacity={0.7}
+                                    >
+                                        <Ionicons name="chevron-down" size={16} color={colors.text.secondary} />
+                                        <Text style={styles.rollAwayText}>Tabs</Text>
+                                    </TouchableOpacity>
 
-                            {/* Reasoning Brain Button */}
-                            <TouchableOpacity
-                                onPress={() => handleQuickPrompt('Break down this task step-by-step')}
-                                style={styles.dockedIconBtn}
-                                activeOpacity={0.7}
-                            >
-                                <Ionicons name="bulb-outline" size={17} color={colors.accent[600]} />
-                            </TouchableOpacity>
+                                    {/* Model selector chip inside composer header */}
+                                    <TouchableOpacity
+                                        onPress={() => setShowModelPicker(true)}
+                                        style={styles.composerModelChip}
+                                        activeOpacity={0.8}
+                                    >
+                                        <Ionicons name="hardware-chip-outline" size={12} color={colors.primary[600]} />
+                                        <Text style={styles.composerModelText}>
+                                            {activeModel.name.split(' ')[0]}
+                                        </Text>
+                                        <Ionicons name="chevron-down" size={10} color={colors.slate[400]} />
+                                    </TouchableOpacity>
+                                </View>
 
-                            {/* Input Capsule */}
-                            <View style={styles.dockedInputCapsule}>
-                                <TouchableOpacity onPress={() => onNavigateTab?.('vault')}>
-                                    <Ionicons name="attach-outline" size={17} color={colors.slate[400]} />
-                                </TouchableOpacity>
-                                <TextInput
-                                    style={styles.dockedTextInput}
-                                    placeholder="Type..."
-                                    placeholderTextColor={colors.slate[400]}
-                                    value={input}
-                                    onChangeText={setInput}
-                                    multiline
-                                />
+                                <View style={styles.composerInputRow}>
+                                    {/* Skills / Puzzle */}
+                                    <TouchableOpacity
+                                        onPress={() => setShowSkillsModal(true)}
+                                        style={styles.composerIconBtn}
+                                        activeOpacity={0.7}
+                                    >
+                                        <Ionicons name="extension-puzzle-outline" size={17} color={colors.primary[600]} />
+                                    </TouchableOpacity>
+
+                                    {/* Input Capsule */}
+                                    <View style={styles.composerInputCapsule}>
+                                        <TouchableOpacity onPress={() => onNavigateTab?.('vault')}>
+                                            <Ionicons name="attach-outline" size={17} color={colors.slate[400]} />
+                                        </TouchableOpacity>
+                                        <TextInput
+                                            ref={inputRef}
+                                            style={styles.composerTextInput}
+                                            placeholder="Type a request..."
+                                            placeholderTextColor={colors.slate[400]}
+                                            value={input}
+                                            onChangeText={handleInputChange}
+                                            multiline
+                                            autoFocus
+                                        />
+                                    </View>
+
+                                    {/* Send Orb Button */}
+                                    <TouchableOpacity
+                                        onPress={handleSend}
+                                        disabled={!input.trim() || isProcessing}
+                                        style={[
+                                            styles.composerSendOrb,
+                                            (!input.trim() || isProcessing) && styles.composerSendOrbDisabled,
+                                        ]}
+                                        activeOpacity={0.8}
+                                    >
+                                        {isProcessing ? (
+                                            <ActivityIndicator size="small" color="#FFFFFF" />
+                                        ) : (
+                                            <Ionicons name="arrow-up" size={17} color="#FFFFFF" />
+                                        )}
+                                    </TouchableOpacity>
+                                </View>
                             </View>
-
-                            {/* Circular Black Orb Send Button */}
-                            <TouchableOpacity
-                                onPress={handleSend}
-                                disabled={!input.trim() || isProcessing}
-                                style={[
-                                    styles.dockedSendOrb,
-                                    (!input.trim() || isProcessing) && styles.dockedSendOrbDisabled,
-                                ]}
-                                activeOpacity={0.8}
-                            >
-                                {isProcessing ? (
-                                    <ActivityIndicator size="small" color="#FFFFFF" />
-                                ) : (
-                                    <Ionicons name="arrow-up" size={17} color="#FFFFFF" />
-                                )}
-                            </TouchableOpacity>
-                        </View>
-
-                        {/* Floating Model Indicator Pill */}
-                        <TouchableOpacity
-                            onPress={() => setShowModelPicker(true)}
-                            style={styles.floatingBottomModelPill}
-                            activeOpacity={0.7}
-                        >
-                            <Ionicons name="hardware-chip-outline" size={12} color={colors.primary[600]} />
-                            <Text style={styles.floatingModelText}>{activeModel.name.toUpperCase()}</Text>
-                            <Ionicons name="chevron-down" size={11} color={colors.slate[400]} />
-                        </TouchableOpacity>
-                    </View>
+                        ) : (
+                            /* === COMPACT FLOATING CHAT TRIGGER (Bottom Navbar is Visible) === */
+                            <View style={styles.compactTriggerWrapper}>
+                                <TouchableOpacity
+                                    onPress={() => onToggleCompose?.(true)}
+                                    style={styles.compactTriggerBar}
+                                    activeOpacity={0.85}
+                                >
+                                    <Ionicons name="chatbubble-outline" size={15} color={colors.primary[600]} />
+                                    <Text style={styles.compactTriggerText}>Tap to type a message...</Text>
+                                    <View style={styles.compactModelTag}>
+                                        <Ionicons name="hardware-chip-outline" size={11} color={colors.text.secondary} />
+                                        <Text style={styles.compactModelText}>{activeModel.name.split(' ')[0]}</Text>
+                                    </View>
+                                </TouchableOpacity>
+                            </View>
+                        )}
+                    </>
                 )}
 
                 {/* 5. Bottom Sheet Model Selector Modal */}
@@ -690,7 +748,7 @@ const styles = StyleSheet.create({
     scrollContent: {
         paddingHorizontal: spacing.lg,
         paddingTop: spacing.xs,
-        paddingBottom: spacing['4xl'],
+        paddingBottom: spacing['2xl'],
     },
     heroScrollContent: {
         justifyContent: 'center',
@@ -938,23 +996,57 @@ const styles = StyleSheet.create({
         marginVertical: spacing.sm,
     },
 
-    // 4. Docked Bottom Input Bar
-    dockedBottomBar: {
+    // 4A. ACTIVE COMPOSER BAR (When composing, Navbar is hidden)
+    activeComposerBar: {
         backgroundColor: colors.background.surface,
         paddingHorizontal: spacing.lg,
-        paddingTop: spacing.xs + 2,
-        paddingBottom: Platform.OS === 'ios' ? spacing.md : spacing.xs + 2,
+        paddingTop: spacing.xs,
+        paddingBottom: Platform.OS === 'ios' ? spacing.lg : spacing.sm,
         borderTopWidth: 1,
         borderTopColor: colors.slate[200],
-        alignItems: 'center',
+        ...shadows.card,
     },
-    dockedInputRow: {
+    composerHeaderRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        width: '100%',
+        justifyContent: 'space-between',
+        marginBottom: spacing.xs,
+        paddingHorizontal: 2,
+    },
+    rollAwayBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: colors.slate[100],
+        paddingVertical: 3,
+        paddingHorizontal: spacing.sm,
+        borderRadius: borderRadius.full,
+        gap: 2,
+    },
+    rollAwayText: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: colors.text.secondary,
+    },
+    composerModelChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(2, 132, 199, 0.08)',
+        paddingVertical: 3,
+        paddingHorizontal: spacing.sm,
+        borderRadius: borderRadius.full,
+        gap: 4,
+    },
+    composerModelText: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: colors.primary[600],
+    },
+    composerInputRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
         gap: spacing.xs + 2,
     },
-    dockedIconBtn: {
+    composerIconBtn: {
         width: 36,
         height: 36,
         borderRadius: 18,
@@ -964,7 +1056,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    dockedInputCapsule: {
+    composerInputCapsule: {
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
@@ -973,15 +1065,17 @@ const styles = StyleSheet.create({
         paddingHorizontal: spacing.md,
         borderWidth: 1,
         borderColor: colors.slate[200],
-        height: 40,
+        minHeight: 40,
+        maxHeight: 90,
     },
-    dockedTextInput: {
+    composerTextInput: {
         flex: 1,
         fontSize: typography.fontSize.sm,
         color: colors.text.primary,
         marginLeft: spacing.xs,
+        maxHeight: 80,
     },
-    dockedSendOrb: {
+    composerSendOrb: {
         width: 36,
         height: 36,
         borderRadius: 18,
@@ -990,24 +1084,45 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         ...shadows.subtle,
     },
-    dockedSendOrbDisabled: {
+    composerSendOrbDisabled: {
         backgroundColor: colors.slate[300],
     },
-    floatingBottomModelPill: {
+
+    // 4B. COMPACT FLOATING CHAT TRIGGER (When browsing, Navbar is visible)
+    compactTriggerWrapper: {
+        paddingHorizontal: spacing.lg,
+        paddingBottom: spacing.xs,
+    },
+    compactTriggerBar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: colors.background.surface,
+        borderRadius: borderRadius.full,
+        paddingVertical: 8,
+        paddingHorizontal: spacing.md,
+        borderWidth: 1,
+        borderColor: colors.slate[200],
+        ...shadows.subtle,
+    },
+    compactTriggerText: {
+        fontSize: typography.fontSize.xs,
+        color: colors.slate[400],
+        marginLeft: spacing.xs,
+        flex: 1,
+    },
+    compactModelTag: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: colors.slate[100],
-        paddingVertical: 3,
-        paddingHorizontal: spacing.md,
+        paddingVertical: 2,
+        paddingHorizontal: spacing.sm,
         borderRadius: borderRadius.full,
-        marginTop: 6,
-        gap: 4,
+        gap: 3,
     },
-    floatingModelText: {
+    compactModelText: {
         fontSize: 10,
-        fontWeight: '800',
-        color: colors.text.primary,
-        letterSpacing: 0.5,
+        fontWeight: '700',
+        color: colors.text.secondary,
     },
 
     // Modals
