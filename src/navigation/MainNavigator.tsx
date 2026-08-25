@@ -1,6 +1,6 @@
 /**
  * Main Navigator - Wake Up Nola
- * 5-tab based navigation
+ * 5-tab based navigation: Chat (Main Space), Connectors, Vault, Tasks, Models
  */
 
 import React, { useState } from 'react';
@@ -8,8 +8,8 @@ import { View, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 
 import { BottomNav, TabName } from '../components/molecules/BottomNav';
-import { WakeUpScreen } from '../screens/WakeUpScreen';
 import { ChatScreen } from '../screens/ChatScreen';
+import { ConnectorsScreen } from '../screens/ConnectorsScreen';
 import { VaultScreen } from '../screens/VaultScreen';
 import { TasksScreen } from '../screens/TasksScreen';
 import { ModelManagerScreen } from '../screens/ModelManagerScreen';
@@ -17,7 +17,7 @@ import { useNola } from '../contexts/NolaContext';
 import { colors } from '../theme';
 
 export const MainNavigator: React.FC = () => {
-    const [activeTab, setActiveTab] = useState<TabName>('wakeup');
+    const [activeTab, setActiveTab] = useState<TabName>('chat');
     const { sendMessage } = useNola();
 
     const handleAskNolaFromVault = async (prompt: string) => {
@@ -31,23 +31,23 @@ export const MainNavigator: React.FC = () => {
 
     const renderScreen = () => {
         switch (activeTab) {
-            case 'chat':
-                return <ChatScreen onNavigateTab={(tab) => setActiveTab(tab)} />;
+            case 'connectors':
+                return <ConnectorsScreen onNavigateChat={() => setActiveTab('chat')} />;
             case 'vault':
                 return <VaultScreen onAskNolaAboutDoc={handleAskNolaFromVault} />;
             case 'tasks':
                 return <TasksScreen onAskNolaAboutSchedule={handleAskNolaFromVault} />;
             case 'models':
                 return <ModelManagerScreen />;
-            case 'wakeup':
+            case 'chat':
             default:
-                return <WakeUpScreen onNavigateTab={(tab) => setActiveTab(tab)} />;
+                return <ChatScreen onNavigateTab={(tab) => setActiveTab(tab)} />;
         }
     };
 
     return (
         <View style={styles.container}>
-            <StatusBar style="light" backgroundColor={colors.background.primary} />
+            <StatusBar style="dark" />
 
             <View style={styles.screenContainer}>
                 {renderScreen()}

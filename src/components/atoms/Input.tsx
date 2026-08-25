@@ -1,6 +1,6 @@
 /**
  * Input Component - Atom
- * Styled text input for dark cyber theme with glowing focus state
+ * Styled text input for modern light theme
  */
 
 import React, { useState } from 'react';
@@ -60,8 +60,8 @@ export const Input = ({
                 {leftIcon && (
                     <Ionicons
                         name={leftIcon}
-                        size={20}
-                        color={hasError ? colors.error.main : isFocused ? colors.primary[400] : colors.slate[500]}
+                        size={18}
+                        color={hasError ? colors.error.main : isFocused ? colors.primary[600] : colors.slate[400]}
                         style={styles.leftIcon}
                     />
                 )}
@@ -72,7 +72,7 @@ export const Input = ({
                         leftIcon && styles.inputWithLeftIcon,
                         (rightIcon || secureTextEntry) && styles.inputWithRightIcon,
                     ]}
-                    placeholderTextColor={colors.slate[500]}
+                    placeholderTextColor={colors.slate[400]}
                     onFocus={() => setIsFocused(true)}
                     onBlur={() => setIsFocused(false)}
                     secureTextEntry={isSecure}
@@ -86,7 +86,7 @@ export const Input = ({
                     >
                         <Ionicons
                             name={isSecure ? 'eye-outline' : 'eye-off-outline'}
-                            size={20}
+                            size={18}
                             color={colors.slate[400]}
                         />
                     </TouchableOpacity>
@@ -100,7 +100,7 @@ export const Input = ({
                     >
                         <Ionicons
                             name={rightIcon}
-                            size={20}
+                            size={18}
                             color={colors.slate[400]}
                         />
                     </TouchableOpacity>
@@ -123,13 +123,13 @@ export const Input = ({
 
 const styles = StyleSheet.create({
     container: {
-        marginBottom: spacing.lg,
+        marginBottom: spacing.md,
     },
     label: {
         fontSize: typography.fontSize.sm,
-        fontWeight: '600',
-        color: colors.slate[300],
-        marginBottom: spacing.sm,
+        fontWeight: '700',
+        color: colors.text.primary,
+        marginBottom: spacing.xs,
     },
     labelError: {
         color: colors.error.main,
@@ -137,25 +137,25 @@ const styles = StyleSheet.create({
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.background.card,
+        backgroundColor: '#FFFFFF',
         borderWidth: 1.5,
-        borderColor: colors.slate[800],
+        borderColor: colors.slate[200],
         borderRadius: borderRadius.lg,
-        ...shadows.sm,
+        ...shadows.subtle,
     },
     inputFocused: {
         borderColor: colors.primary[500],
-        backgroundColor: colors.background.cardHover,
+        backgroundColor: '#FFFFFF',
     },
     inputError: {
         borderColor: colors.error.main,
-        backgroundColor: 'rgba(244, 63, 94, 0.1)',
+        backgroundColor: colors.error.light,
     },
     input: {
         flex: 1,
-        paddingVertical: spacing.md + 2,
-        paddingHorizontal: spacing.lg,
-        fontSize: typography.fontSize.base,
+        paddingVertical: spacing.sm + 4,
+        paddingHorizontal: spacing.md,
+        fontSize: typography.fontSize.sm,
         color: colors.text.primary,
     },
     inputWithLeftIcon: {
@@ -165,10 +165,10 @@ const styles = StyleSheet.create({
         paddingRight: spacing.xs,
     },
     leftIcon: {
-        marginLeft: spacing.lg,
+        marginLeft: spacing.md,
     },
     rightIconButton: {
-        padding: spacing.md,
+        padding: spacing.sm,
     },
     errorContainer: {
         flexDirection: 'row',

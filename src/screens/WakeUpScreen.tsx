@@ -189,12 +189,12 @@ const styles = StyleSheet.create({
     modelBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.slate[850],
+        backgroundColor: colors.slate[100],
         paddingVertical: 5,
         paddingHorizontal: spacing.sm,
         borderRadius: borderRadius.full,
         borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.08)',
+        borderColor: colors.slate[200],
     },
     activeDot: {
         width: 6,
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
     },
     modelName: {
         fontSize: typography.fontSize.xs,
-        color: colors.slate[300],
+        color: colors.text.primary,
         fontWeight: '600',
         marginRight: 4,
     },

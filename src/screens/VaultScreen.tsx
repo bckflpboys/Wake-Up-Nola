@@ -22,7 +22,7 @@ import { Input } from '../components/atoms/Input';
 import { Button } from '../components/atoms/Button';
 import { Badge } from '../components/atoms/Badge';
 import { VaultDocument } from '../db/schema';
-import { colors, spacing, typography, borderRadius } from '../theme';
+import { colors, spacing, typography, borderRadius, shadows } from '../theme';
 
 interface VaultScreenProps {
     onAskNolaAboutDoc?: (prompt: string) => void;
@@ -87,7 +87,7 @@ export const VaultScreen: React.FC<VaultScreenProps> = ({ onAskNolaAboutDoc }) =
                         style={styles.addBtn}
                         activeOpacity={0.8}
                     >
-                        <Ionicons name="add" size={20} color="#FFFFFF" />
+                        <Ionicons name="add" size={18} color="#FFFFFF" />
                         <Text style={styles.addBtnText}>Add Note</Text>
                     </TouchableOpacity>
                 </View>
@@ -109,9 +109,9 @@ export const VaultScreen: React.FC<VaultScreenProps> = ({ onAskNolaAboutDoc }) =
                 <View style={styles.foldersBar}>
                     {folders.map(folder => (
                         <View key={folder.id} style={styles.folderChip}>
-                            <Ionicons name="folder" size={14} color={colors.accent[400]} />
+                            <Ionicons name="folder" size={13} color={colors.primary[600]} />
                             <Text style={styles.folderChipText}>{folder.path}</Text>
-                            <Badge label={`${folder.documentCount} items`} variant="default" size="sm" />
+                            <Badge label={`${folder.documentCount} files`} variant="default" size="sm" />
                         </View>
                     ))}
                 </View>
@@ -124,7 +124,7 @@ export const VaultScreen: React.FC<VaultScreenProps> = ({ onAskNolaAboutDoc }) =
                 >
                     {searchResults.length === 0 ? (
                         <View style={styles.emptyState}>
-                            <Ionicons name="folder-open-outline" size={48} color={colors.slate[600]} />
+                            <Ionicons name="folder-open-outline" size={44} color={colors.slate[400]} />
                             <Text style={styles.emptyTitle}>No matching documents found</Text>
                             <Text style={styles.emptyDesc}>
                                 Try searching for "schedule", "alpha", "contacts" or add a new offline note.
@@ -161,7 +161,7 @@ export const VaultScreen: React.FC<VaultScreenProps> = ({ onAskNolaAboutDoc }) =
                                         onPress={() => setSelectedDoc(null)}
                                         style={styles.closeBtn}
                                     >
-                                        <Ionicons name="close" size={24} color={colors.slate[400]} />
+                                        <Ionicons name="close" size={24} color={colors.slate[600]} />
                                     </TouchableOpacity>
                                 </View>
 
@@ -201,7 +201,7 @@ export const VaultScreen: React.FC<VaultScreenProps> = ({ onAskNolaAboutDoc }) =
                                     onPress={() => setIsAddModalVisible(false)}
                                     style={styles.closeBtn}
                                 >
-                                    <Ionicons name="close" size={24} color={colors.slate[400]} />
+                                    <Ionicons name="close" size={24} color={colors.slate[600]} />
                                 </TouchableOpacity>
                             </View>
 
@@ -273,16 +273,17 @@ const styles = StyleSheet.create({
     },
     headerSubtitle: {
         fontSize: typography.fontSize.xs,
-        color: colors.text.secondary,
+        color: colors.text.muted,
         marginTop: 2,
     },
     addBtn: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.primary[600],
+        backgroundColor: colors.text.primary,
         paddingVertical: 7,
         paddingHorizontal: spacing.md,
         borderRadius: borderRadius.full,
+        ...shadows.sm,
     },
     addBtnText: {
         fontSize: typography.fontSize.xs,
@@ -305,17 +306,18 @@ const styles = StyleSheet.create({
     folderChip: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.background.card,
+        backgroundColor: '#FFFFFF',
         paddingVertical: 4,
         paddingHorizontal: spacing.sm,
         borderRadius: borderRadius.md,
         borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.06)',
+        borderColor: 'rgba(15, 23, 42, 0.08)',
         gap: 6,
+        ...shadows.subtle,
     },
     folderChipText: {
         fontSize: typography.fontSize.xs,
-        color: colors.slate[300],
+        color: colors.text.primary,
         fontFamily: 'monospace',
     },
     scrollList: {
@@ -333,12 +335,12 @@ const styles = StyleSheet.create({
     emptyTitle: {
         fontSize: typography.fontSize.base,
         fontWeight: '700',
-        color: colors.slate[400],
+        color: colors.text.secondary,
         marginTop: spacing.md,
     },
     emptyDesc: {
         fontSize: typography.fontSize.xs,
-        color: colors.slate[500],
+        color: colors.text.muted,
         textAlign: 'center',
         marginTop: spacing.xs,
         paddingHorizontal: spacing.xl,
@@ -350,13 +352,11 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-end',
     },
     modalContent: {
-        backgroundColor: colors.background.secondary,
+        backgroundColor: '#FFFFFF',
         borderTopLeftRadius: borderRadius['2xl'],
         borderTopRightRadius: borderRadius['2xl'],
         maxHeight: '85%',
         padding: spacing.lg,
-        borderTopWidth: 1,
-        borderTopColor: colors.slate[800],
     },
     modalHeader: {
         flexDirection: 'row',
@@ -365,7 +365,7 @@ const styles = StyleSheet.create({
         marginBottom: spacing.md,
         paddingBottom: spacing.sm,
         borderBottomWidth: 1,
-        borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+        borderBottomColor: colors.slate[100],
     },
     modalTitleWrap: {
         flex: 1,
@@ -378,7 +378,7 @@ const styles = StyleSheet.create({
     },
     modalSub: {
         fontSize: typography.fontSize.xs,
-        color: colors.accent[400],
+        color: colors.primary[600],
         fontFamily: 'monospace',
         marginTop: 2,
     },
@@ -391,7 +391,7 @@ const styles = StyleSheet.create({
     },
     docContentText: {
         fontSize: typography.fontSize.sm,
-        color: colors.slate[200],
+        color: colors.text.primary,
         lineHeight: 22,
     },
     modalFooter: {

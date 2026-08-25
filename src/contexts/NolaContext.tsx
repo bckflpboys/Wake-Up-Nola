@@ -27,7 +27,11 @@ interface NolaContextType {
     activeSteps: InferenceStep[];
     dailyBriefing: DailyBriefing | null;
     messages: ChatMessage[];
+    lanEndpoint: string;
+    isOfflineMode: boolean;
     setActiveModel: (modelKey: string) => void;
+    setLanEndpoint: (url: string) => void;
+    toggleOfflineMode: () => void;
     toggleStandby: () => void;
     startVoiceTrigger: () => void;
     stopVoiceTrigger: () => void;
@@ -46,6 +50,8 @@ export const NolaProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [isProcessing, setIsProcessing] = useState<boolean>(false);
     const [activeSteps, setActiveSteps] = useState<InferenceStep[]>([]);
     const [dailyBriefing, setDailyBriefing] = useState<DailyBriefing | null>(null);
+    const [lanEndpoint, setLanEndpointState] = useState<string>('http://192.168.1.100:11434');
+    const [isOfflineMode, setIsOfflineMode] = useState<boolean>(true);
 
     const [messages, setMessages] = useState<ChatMessage[]>([
         {
@@ -137,16 +143,16 @@ export const NolaProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     };
 
+    const setLanEndpoint = (url: string) => {
+        setLanEndpointState(url);
+    };
+
+    const toggleOfflineMode = () => {
+        setIsOfflineMode(prev => !prev);
+    };
+
     const clearChatHistory = () => {
-        setMessages([
-            {
-                id: `welcome-${Date.now()}`,
-                role: 'assistant',
-                content: 'Chat cleared. Nola is on standby.',
-                modelUsed: activeModel.name,
-                createdAt: new Date().toISOString(),
-            },
-        ]);
+        setMessages([]);
     };
 
     return (
@@ -160,7 +166,11 @@ export const NolaProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 activeSteps,
                 dailyBriefing,
                 messages,
+                lanEndpoint,
+                isOfflineMode,
                 setActiveModel,
+                setLanEndpoint,
+                toggleOfflineMode,
                 toggleStandby,
                 startVoiceTrigger,
                 stopVoiceTrigger,

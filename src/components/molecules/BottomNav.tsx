@@ -1,14 +1,14 @@
 /**
  * BottomNav - Molecule
- * 5-tab navigation bar for Wake Up Nola
+ * Modern, crisp 5-tab navigation bar for Wake Up Nola
  */
 
 import React from 'react';
 import { View, TouchableOpacity, Text, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, typography, spacing } from '../../theme';
+import { colors, typography, spacing, shadows } from '../../theme';
 
-export type TabName = 'wakeup' | 'chat' | 'vault' | 'tasks' | 'models';
+export type TabName = 'chat' | 'connectors' | 'vault' | 'tasks' | 'models';
 
 interface BottomNavProps {
     activeTab: TabName;
@@ -26,16 +26,16 @@ export const BottomNav: React.FC<BottomNavProps> = ({
         activeIcon: keyof typeof Ionicons.glyphMap;
     }> = [
         {
-            id: 'wakeup',
-            label: 'Wake Up',
-            icon: 'radio-outline',
-            activeIcon: 'radio',
-        },
-        {
             id: 'chat',
             label: 'Assistant',
             icon: 'chatbubble-ellipses-outline',
             activeIcon: 'chatbubble-ellipses',
+        },
+        {
+            id: 'connectors',
+            label: 'Connectors',
+            icon: 'extension-puzzle-outline',
+            activeIcon: 'extension-puzzle',
         },
         {
             id: 'vault',
@@ -61,33 +61,25 @@ export const BottomNav: React.FC<BottomNavProps> = ({
         <View style={styles.container}>
             {tabs.map(tab => {
                 const isActive = activeTab === tab.id;
-                const isWakeUp = tab.id === 'wakeup';
 
                 return (
                     <TouchableOpacity
                         key={tab.id}
                         onPress={() => onTabChange(tab.id)}
-                        style={[styles.tabButton, isWakeUp && styles.wakeTabButton]}
+                        style={styles.tabButton}
                         activeOpacity={0.7}
                     >
                         <View style={[styles.iconContainer, isActive && styles.activeIconContainer]}>
                             <Ionicons
                                 name={isActive ? tab.activeIcon : tab.icon}
-                                size={isWakeUp ? 24 : 22}
-                                color={
-                                    isActive
-                                        ? isWakeUp
-                                            ? colors.standby[400]
-                                            : colors.accent[400]
-                                        : colors.slate[500]
-                                }
+                                size={20}
+                                color={isActive ? colors.primary[600] : colors.slate[400]}
                             />
                         </View>
                         <Text
                             style={[
                                 styles.tabLabel,
                                 isActive && styles.activeTabLabel,
-                                isWakeUp && isActive && styles.activeWakeLabel,
                             ]}
                         >
                             {tab.label}
@@ -102,14 +94,15 @@ export const BottomNav: React.FC<BottomNavProps> = ({
 const styles = StyleSheet.create({
     container: {
         flexDirection: 'row',
-        backgroundColor: colors.background.secondary,
+        backgroundColor: '#FFFFFF',
         borderTopWidth: 1,
-        borderTopColor: 'rgba(255, 255, 255, 0.08)',
-        paddingVertical: spacing.xs + 2,
-        paddingBottom: Platform.OS === 'ios' ? spacing.xl : spacing.sm,
+        borderTopColor: 'rgba(15, 23, 42, 0.08)',
+        paddingVertical: spacing.xs,
+        paddingBottom: Platform.OS === 'ios' ? spacing.lg : spacing.xs + 2,
         paddingHorizontal: spacing.sm,
         justifyContent: 'space-around',
         alignItems: 'center',
+        ...shadows.subtle,
     },
     tabButton: {
         alignItems: 'center',
@@ -117,12 +110,9 @@ const styles = StyleSheet.create({
         flex: 1,
         paddingVertical: 2,
     },
-    wakeTabButton: {
-        // Subtle prominence for Wake Up standby tab
-    },
     iconContainer: {
-        width: 36,
-        height: 28,
+        width: 32,
+        height: 26,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -130,15 +120,12 @@ const styles = StyleSheet.create({
     tabLabel: {
         fontSize: 10,
         fontWeight: '600',
-        color: colors.slate[500],
-        marginTop: 2,
+        color: colors.slate[400],
+        marginTop: 1,
     },
     activeTabLabel: {
-        color: colors.accent[400],
-        fontWeight: '700',
-    },
-    activeWakeLabel: {
-        color: colors.standby[400],
+        color: colors.primary[600],
+        fontWeight: '800',
     },
 });
 

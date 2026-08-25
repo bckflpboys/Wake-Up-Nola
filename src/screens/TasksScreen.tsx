@@ -1,6 +1,6 @@
 /**
- * Tasks Screen - Daily Agenda & Missing Items
- * Tracks scheduled routines, overdue items, and task automations
+ * Tasks Screen - Agenda, Missing Action Verification & Decomposed Steps
+ * Surfaces "What am I missing?" items and sequential task breakdowns
  */
 
 import React, { useState } from 'react';
@@ -21,7 +21,8 @@ import { Card } from '../components/atoms/Card';
 import { Badge } from '../components/atoms/Badge';
 import { Input } from '../components/atoms/Input';
 import { Button } from '../components/atoms/Button';
-import { colors, spacing, typography, borderRadius } from '../theme';
+import { TaskAndSchedule } from '../db/schema';
+import { colors, spacing, typography, borderRadius, shadows } from '../theme';
 
 interface TasksScreenProps {
     onAskNolaAboutSchedule?: (prompt: string) => void;
@@ -31,29 +32,47 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({ onAskNolaAboutSchedule
     const {
         tasks,
         missingAlerts,
-        scheduleItems,
         toggleTaskStatus,
         addTask,
-        deleteTask,
+        refreshTasks,
     } = useTasks();
 
     const [isAddModalVisible, setIsAddModalVisible] = useState(false);
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
-    const [dueTime, setDueTime] = useState('02:00 PM');
-    const [category, setCategory] = useState<'schedule' | 'missing_alert' | 'todo'>('schedule');
-    const [priority, setPriority] = useState<'low' | 'medium' | 'high' | 'critical'>('medium');
+    const [scheduledTime, setScheduledTime] = useState('');
+    const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
+    const [isMissingCheck, setIsMissingCheck] = useState(false);
 
-    const handleCreateTask = () => {
+    const pendingTasks = tasks.filter(t => t.status === 'pending');
+    const completedTasks = tasks.filter(t => t.status === 'completed');
+
+    const handleCreateTask = async () => {
         if (!title.trim()) {
-            Alert.alert('Missing Title', 'Please enter a task or schedule title.');
+            Alert.alert('Missing Title', 'Please enter a task title.');
             return;
         }
 
-        addTask(title.trim(), description.trim(), dueTime.trim(), category, priority);
+        addTask(
+            title.trim(),
+            description.trim(),
+            isMissingCheck ? 'missing_alert' : 'schedule',
+            scheduledTime.trim() || 'Today',
+            priority
+        );
+
         setTitle('');
         setDescription('');
+        setScheduledTime('');
+        setPriority('medium');
+        setIsMissingCheck(false);
         setIsAddModalVisible(false);
+    };
+
+    const handleRunMissingScan = async () => {
+        if (onAskNolaAboutSchedule) {
+            onAskNolaAboutSchedule('Check my agenda and tell me: what am I missing today?');
+        }
     };
 
     return (
@@ -62,9 +81,9 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({ onAskNolaAboutSchedule
                 {/* Header */}
                 <View style={styles.header}>
                     <View>
-                        <Text style={styles.headerTitle}>Agenda & Tasks</Text>
+                        <Text style={styles.headerTitle}>Daily Agenda</Text>
                         <Text style={styles.headerSubtitle}>
-                            {tasks.length} items synced offline on this device
+                            {pendingTasks.length} pending • {missingAlerts.length} missing action checks
                         </Text>
                     </View>
                     <TouchableOpacity
@@ -72,160 +91,74 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({ onAskNolaAboutSchedule
                         style={styles.addBtn}
                         activeOpacity={0.8}
                     >
-                        <Ionicons name="add" size={20} color="#FFFFFF" />
-                        <Text style={styles.addBtnText}>New Item</Text>
+                        <Ionicons name="add" size={18} color="#FFFFFF" />
+                        <Text style={styles.addBtnText}>New Task</Text>
                     </TouchableOpacity>
                 </View>
 
+                {/* Missing Checks Quick Banner */}
+                <View style={styles.missingBanner}>
+                    <View style={styles.missingHeader}>
+                        <View style={styles.alertIconBox}>
+                            <Ionicons name="alert-circle" size={20} color={colors.standby[600]} />
+                        </View>
+                        <View style={styles.alertTextWrap}>
+                            <Text style={styles.alertTitle}>"What am I missing?" Watchdog</Text>
+                            <Text style={styles.alertSub}>
+                                Standby AI monitors schedule gaps and flagged items
+                            </Text>
+                        </View>
+                        <TouchableOpacity
+                            onPress={handleRunMissingScan}
+                            style={styles.scanButton}
+                            activeOpacity={0.8}
+                        >
+                            <Ionicons name="sparkles" size={14} color="#FFFFFF" />
+                            <Text style={styles.scanBtnText}>Verify</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+
+                {/* Tasks List */}
                 <ScrollView
                     style={styles.scrollList}
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={false}
                 >
-                    {/* Critical "What Am I Missing" Radar Section */}
+                    {/* Flagged Missing Checks Section */}
                     {missingAlerts.length > 0 && (
                         <View style={styles.sectionWrap}>
-                            <View style={styles.sectionHeaderRow}>
-                                <Ionicons name="alert-circle" size={18} color={colors.warning.main} />
-                                <Text style={styles.sectionTitleWarning}>What Am I Missing Radar</Text>
-                                <Badge
-                                    label={`${missingAlerts.length} OVERDUE`}
-                                    variant="warning"
-                                    size="sm"
-                                />
-                            </View>
-
-                            {missingAlerts.map(item => {
-                                const isDone = item.status === 'completed';
-                                return (
-                                    <Card key={item.id} variant="glowAmber" style={styles.taskCard}>
-                                        <View style={styles.taskRow}>
-                                            <TouchableOpacity
-                                                onPress={() => toggleTaskStatus(item.id)}
-                                                style={[styles.checkbox, isDone && styles.checkboxDone]}
-                                                activeOpacity={0.7}
-                                            >
-                                                {isDone && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
-                                            </TouchableOpacity>
-
-                                            <View style={styles.taskBody}>
-                                                <Text style={[styles.taskTitle, isDone && styles.taskDoneText]}>
-                                                    {item.title}
-                                                </Text>
-                                                {item.description ? (
-                                                    <Text style={styles.taskDesc}>{item.description}</Text>
-                                                ) : null}
-                                                <View style={styles.taskMeta}>
-                                                    <Ionicons name="time-outline" size={12} color={colors.standby[400]} />
-                                                    <Text style={styles.taskDueText}>{item.dueTime || 'Due ASAP'}</Text>
-                                                </View>
-                                            </View>
-
-                                            <TouchableOpacity
-                                                onPress={() => deleteTask(item.id)}
-                                                style={styles.deleteBtn}
-                                            >
-                                                <Ionicons name="trash-outline" size={16} color={colors.slate[500]} />
-                                            </TouchableOpacity>
-                                        </View>
-                                    </Card>
-                                );
-                            })}
+                            <Text style={styles.sectionHeader}>⚠️ Flagged Follow-Ups</Text>
+                            {missingAlerts.map(task => (
+                                <TaskItem key={task.id} task={task} onToggle={() => toggleTaskStatus(task.id)} />
+                            ))}
                         </View>
                     )}
 
-                    {/* Today's Schedule Timeline */}
+                    {/* Pending Agenda Section */}
                     <View style={styles.sectionWrap}>
-                        <View style={styles.sectionHeaderRow}>
-                            <Ionicons name="calendar" size={18} color={colors.accent[400]} />
-                            <Text style={styles.sectionTitle}>Today's Schedule & Routine</Text>
-                            <Badge
-                                label={`${scheduleItems.length} EVENTS`}
-                                variant="accent"
-                                size="sm"
-                            />
+                        <Text style={styles.sectionHeader}>📌 Scheduled Agenda ({pendingTasks.length})</Text>
+                        {pendingTasks.length === 0 ? (
+                            <View style={styles.emptyCard}>
+                                <Ionicons name="checkmark-done-circle-outline" size={36} color={colors.success.main} />
+                                <Text style={styles.emptyText}>All caught up! No pending tasks.</Text>
+                            </View>
+                        ) : (
+                            pendingTasks.map(task => (
+                                <TaskItem key={task.id} task={task} onToggle={() => toggleTaskStatus(task.id)} />
+                            ))
+                        )}
+                    </View>
+
+                    {/* Completed Section */}
+                    {completedTasks.length > 0 && (
+                        <View style={styles.sectionWrap}>
+                            <Text style={styles.sectionHeader}>✓ Completed ({completedTasks.length})</Text>
+                            {completedTasks.map(task => (
+                                <TaskItem key={task.id} task={task} onToggle={() => toggleTaskStatus(task.id)} />
+                            ))}
                         </View>
-
-                        {scheduleItems.map(item => {
-                            const isDone = item.status === 'completed';
-                            return (
-                                <Card key={item.id} variant="default" style={styles.taskCard}>
-                                    <View style={styles.taskRow}>
-                                        <TouchableOpacity
-                                            onPress={() => toggleTaskStatus(item.id)}
-                                            style={[styles.checkbox, isDone && styles.checkboxDone]}
-                                            activeOpacity={0.7}
-                                        >
-                                            {isDone && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
-                                        </TouchableOpacity>
-
-                                        <View style={styles.taskBody}>
-                                            <View style={styles.scheduleHeader}>
-                                                <Text style={[styles.taskTitle, isDone && styles.taskDoneText]}>
-                                                    {item.title}
-                                                </Text>
-                                                <Badge
-                                                    label={item.dueTime || 'All Day'}
-                                                    variant="primary"
-                                                    size="sm"
-                                                />
-                                            </View>
-
-                                            {item.description ? (
-                                                <Text style={styles.taskDesc}>{item.description}</Text>
-                                            ) : null}
-                                        </View>
-
-                                        <TouchableOpacity
-                                            onPress={() => deleteTask(item.id)}
-                                            style={styles.deleteBtn}
-                                        >
-                                            <Ionicons name="trash-outline" size={16} color={colors.slate[500]} />
-                                        </TouchableOpacity>
-                                    </View>
-                                </Card>
-                            );
-                        })}
-                    </View>
-
-                    {/* Other Tasks */}
-                    <View style={styles.sectionWrap}>
-                        <Text style={styles.sectionTitle}>Other Tasks & Todos</Text>
-                        {tasks
-                            .filter(t => t.category === 'todo')
-                            .map(item => {
-                                const isDone = item.status === 'completed';
-                                return (
-                                    <Card key={item.id} variant="default" style={styles.taskCard}>
-                                        <View style={styles.taskRow}>
-                                            <TouchableOpacity
-                                                onPress={() => toggleTaskStatus(item.id)}
-                                                style={[styles.checkbox, isDone && styles.checkboxDone]}
-                                                activeOpacity={0.7}
-                                            >
-                                                {isDone && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
-                                            </TouchableOpacity>
-
-                                            <View style={styles.taskBody}>
-                                                <Text style={[styles.taskTitle, isDone && styles.taskDoneText]}>
-                                                    {item.title}
-                                                </Text>
-                                                {item.description ? (
-                                                    <Text style={styles.taskDesc}>{item.description}</Text>
-                                                ) : null}
-                                            </View>
-
-                                            <TouchableOpacity
-                                                onPress={() => deleteTask(item.id)}
-                                                style={styles.deleteBtn}
-                                            >
-                                                <Ionicons name="trash-outline" size={16} color={colors.slate[500]} />
-                                            </TouchableOpacity>
-                                        </View>
-                                    </Card>
-                                );
-                            })}
-                    </View>
+                    )}
                 </ScrollView>
 
                 {/* Add Task Modal */}
@@ -238,81 +171,60 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({ onAskNolaAboutSchedule
                     <View style={styles.modalOverlay}>
                         <View style={styles.modalContent}>
                             <View style={styles.modalHeader}>
-                                <Text style={styles.modalTitle}>Add Schedule Item or Task</Text>
+                                <Text style={styles.modalTitle}>Add New Agenda Item</Text>
                                 <TouchableOpacity
                                     onPress={() => setIsAddModalVisible(false)}
                                     style={styles.closeBtn}
                                 >
-                                    <Ionicons name="close" size={24} color={colors.slate[400]} />
+                                    <Ionicons name="close" size={24} color={colors.slate[600]} />
                                 </TouchableOpacity>
                             </View>
 
                             <ScrollView style={styles.modalBody}>
                                 <Input
-                                    label="Item Title"
-                                    placeholder="e.g. Client Architecture Review"
+                                    label="Task Title"
+                                    placeholder="e.g. Call Alice about Project Alpha"
                                     value={title}
                                     onChangeText={setTitle}
                                 />
                                 <Input
-                                    label="Time / Due Time"
-                                    placeholder="e.g. 03:30 PM or Friday 5:00 PM"
-                                    value={dueTime}
-                                    onChangeText={setDueTime}
+                                    label="Scheduled Time (Optional)"
+                                    placeholder="e.g. 14:00 or Tomorrow 10am"
+                                    value={scheduledTime}
+                                    onChangeText={setScheduledTime}
                                 />
                                 <Input
-                                    label="Description & Details"
-                                    placeholder="Optional notes or details..."
+                                    label="Notes & Details"
+                                    placeholder="Details or checklist items..."
                                     value={description}
                                     onChangeText={setDescription}
                                     multiline
-                                    numberOfLines={3}
                                 />
 
-                                {/* Category Selector */}
-                                <Text style={styles.label}>Category</Text>
-                                <View style={styles.categoryRow}>
-                                    <TouchableOpacity
-                                        onPress={() => setCategory('schedule')}
-                                        style={[
-                                            styles.categoryChip,
-                                            category === 'schedule' && styles.categoryChipActive,
-                                        ]}
-                                    >
-                                        <Text style={[styles.categoryText, category === 'schedule' && styles.categoryTextActive]}>
-                                            📅 Schedule
-                                        </Text>
-                                    </TouchableOpacity>
-
-                                    <TouchableOpacity
-                                        onPress={() => setCategory('missing_alert')}
-                                        style={[
-                                            styles.categoryChip,
-                                            category === 'missing_alert' && styles.categoryChipWarning,
-                                        ]}
-                                    >
-                                        <Text style={[styles.categoryText, category === 'missing_alert' && styles.categoryTextActive]}>
-                                            ⚠️ Missing Radar
-                                        </Text>
-                                    </TouchableOpacity>
-
-                                    <TouchableOpacity
-                                        onPress={() => setCategory('todo')}
-                                        style={[
-                                            styles.categoryChip,
-                                            category === 'todo' && styles.categoryChipActive,
-                                        ]}
-                                    >
-                                        <Text style={[styles.categoryText, category === 'todo' && styles.categoryTextActive]}>
-                                            ✅ Todo
-                                        </Text>
-                                    </TouchableOpacity>
-                                </View>
+                                {/* Missing Check Toggle */}
+                                <TouchableOpacity
+                                    onPress={() => setIsMissingCheck(!isMissingCheck)}
+                                    style={[
+                                        styles.flagToggle,
+                                        isMissingCheck && styles.flagToggleActive,
+                                    ]}
+                                    activeOpacity={0.8}
+                                >
+                                    <Ionicons
+                                        name={isMissingCheck ? 'checkbox' : 'square-outline'}
+                                        size={20}
+                                        color={isMissingCheck ? colors.standby[600] : colors.slate[400]}
+                                    />
+                                    <View style={styles.flagTextWrap}>
+                                        <Text style={styles.flagTitle}>Flag for "What Am I Missing?" checks</Text>
+                                        <Text style={styles.flagSub}>Nola will highlight this item in morning briefings</Text>
+                                    </View>
+                                </TouchableOpacity>
                             </ScrollView>
 
                             <View style={styles.modalFooter}>
                                 <Button
-                                    label="Save to Offline Database"
+                                    label="Create Task"
                                     variant="primary"
                                     onPress={handleCreateTask}
                                 />
@@ -322,6 +234,49 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({ onAskNolaAboutSchedule
                 </Modal>
             </View>
         </SafeAreaView>
+    );
+};
+
+const TaskItem: React.FC<{ task: TaskAndSchedule; onToggle: () => void }> = ({ task, onToggle }) => {
+    const isCompleted = task.status === 'completed';
+
+    return (
+        <Card variant="default" style={styles.taskCard}>
+            <TouchableOpacity onPress={onToggle} style={styles.taskRow} activeOpacity={0.7}>
+                <View style={[styles.checkbox, isCompleted && styles.checkboxChecked]}>
+                    {isCompleted && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+                </View>
+
+                <View style={styles.taskInfo}>
+                    <View style={styles.taskTitleRow}>
+                        <Text style={[styles.taskTitle, isCompleted && styles.taskTitleDone]}>
+                            {task.title}
+                        </Text>
+                        {task.isMissingCheck && (
+                            <Badge label="MISSING CHECK" variant="standby" size="sm" />
+                        )}
+                    </View>
+
+                    {task.description && (
+                        <Text style={styles.taskDesc} numberOfLines={2}>{task.description}</Text>
+                    )}
+
+                    <View style={styles.taskMeta}>
+                        {task.dueTime && (
+                            <View style={styles.timeWrap}>
+                                <Ionicons name="time-outline" size={11} color={colors.primary[600]} />
+                                <Text style={styles.timeText}>{task.dueTime}</Text>
+                            </View>
+                        )}
+                        <Badge
+                            label={task.priority?.toUpperCase() || 'NORMAL'}
+                            variant={task.priority === 'high' || task.priority === 'critical' ? 'error' : 'default'}
+                            size="sm"
+                        />
+                    </View>
+                </View>
+            </TouchableOpacity>
+        </Card>
     );
 };
 
@@ -349,18 +304,69 @@ const styles = StyleSheet.create({
     },
     headerSubtitle: {
         fontSize: typography.fontSize.xs,
-        color: colors.text.secondary,
+        color: colors.text.muted,
         marginTop: 2,
     },
     addBtn: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.primary[600],
+        backgroundColor: colors.text.primary,
         paddingVertical: 7,
         paddingHorizontal: spacing.md,
         borderRadius: borderRadius.full,
+        ...shadows.sm,
     },
     addBtnText: {
+        fontSize: typography.fontSize.xs,
+        fontWeight: '700',
+        color: '#FFFFFF',
+        marginLeft: 4,
+    },
+    missingBanner: {
+        marginHorizontal: spacing.lg,
+        marginBottom: spacing.sm,
+        backgroundColor: '#FFFFFF',
+        borderRadius: borderRadius.xl,
+        padding: spacing.md,
+        borderWidth: 1,
+        borderColor: 'rgba(217, 119, 6, 0.25)',
+        ...shadows.subtle,
+    },
+    missingHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    alertIconBox: {
+        width: 38,
+        height: 38,
+        borderRadius: 19,
+        backgroundColor: 'rgba(217, 119, 6, 0.1)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: spacing.sm,
+    },
+    alertTextWrap: {
+        flex: 1,
+    },
+    alertTitle: {
+        fontSize: typography.fontSize.sm,
+        fontWeight: '700',
+        color: colors.text.primary,
+    },
+    alertSub: {
+        fontSize: typography.fontSize.xs,
+        color: colors.text.muted,
+        marginTop: 1,
+    },
+    scanButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: colors.standby[600],
+        paddingVertical: 6,
+        paddingHorizontal: spacing.md,
+        borderRadius: borderRadius.full,
+    },
+    scanBtnText: {
         fontSize: typography.fontSize.xs,
         fontWeight: '700',
         color: '#FFFFFF',
@@ -370,33 +376,40 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     scrollContent: {
-        padding: spacing.lg,
-        paddingBottom: spacing['4xl'],
+        paddingHorizontal: spacing.lg,
+        paddingBottom: spacing['3xl'],
     },
     sectionWrap: {
-        marginBottom: spacing.xl,
+        marginBottom: spacing.lg,
     },
-    sectionHeaderRow: {
-        flexDirection: 'row',
+    sectionHeader: {
+        fontSize: typography.fontSize.xs,
+        fontWeight: '700',
+        color: colors.text.muted,
+        letterSpacing: 0.8,
+        textTransform: 'uppercase',
+        marginBottom: spacing.sm,
+    },
+    emptyCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: borderRadius.lg,
+        padding: spacing.xl,
         alignItems: 'center',
-        marginBottom: spacing.md,
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(15, 23, 42, 0.06)',
     },
-    sectionTitleWarning: {
-        fontSize: typography.fontSize.base,
-        fontWeight: '700',
-        color: colors.standby[300],
-        marginLeft: spacing.xs,
-        flex: 1,
-    },
-    sectionTitle: {
-        fontSize: typography.fontSize.base,
-        fontWeight: '700',
-        color: colors.text.primary,
-        marginLeft: spacing.xs,
-        flex: 1,
+    emptyText: {
+        fontSize: typography.fontSize.sm,
+        color: colors.text.secondary,
+        marginTop: spacing.xs,
     },
     taskCard: {
-        marginBottom: spacing.sm,
+        marginBottom: spacing.xs + 4,
+        backgroundColor: '#FFFFFF',
+        borderWidth: 1,
+        borderColor: 'rgba(15, 23, 42, 0.08)',
+        ...shadows.subtle,
     },
     taskRow: {
         flexDirection: 'row',
@@ -407,54 +420,55 @@ const styles = StyleSheet.create({
         height: 22,
         borderRadius: 6,
         borderWidth: 2,
-        borderColor: colors.slate[600],
+        borderColor: colors.slate[300],
         alignItems: 'center',
         justifyContent: 'center',
-        marginRight: spacing.md,
+        marginRight: spacing.sm,
         marginTop: 2,
     },
-    checkboxDone: {
+    checkboxChecked: {
         backgroundColor: colors.success.main,
         borderColor: colors.success.main,
     },
-    taskBody: {
+    taskInfo: {
         flex: 1,
     },
-    scheduleHeader: {
+    taskTitleRow: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginBottom: 2,
     },
     taskTitle: {
         fontSize: typography.fontSize.sm,
         fontWeight: '700',
         color: colors.text.primary,
+        flex: 1,
     },
-    taskDoneText: {
+    taskTitleDone: {
         textDecorationLine: 'line-through',
-        color: colors.slate[500],
+        color: colors.slate[400],
     },
     taskDesc: {
         fontSize: typography.fontSize.xs,
-        color: colors.slate[400],
+        color: colors.text.secondary,
         marginTop: 2,
         lineHeight: 16,
     },
     taskMeta: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginTop: 4,
+        marginTop: 6,
+        gap: spacing.sm,
     },
-    taskDueText: {
-        fontSize: typography.fontSize.xs,
-        color: colors.standby[400],
-        marginLeft: 4,
+    timeWrap: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 3,
+    },
+    timeText: {
+        fontSize: 11,
+        color: colors.primary[600],
         fontWeight: '600',
-    },
-    deleteBtn: {
-        padding: spacing.xs,
-        marginLeft: spacing.sm,
     },
     modalOverlay: {
         flex: 1,
@@ -462,13 +476,11 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-end',
     },
     modalContent: {
-        backgroundColor: colors.background.secondary,
+        backgroundColor: '#FFFFFF',
         borderTopLeftRadius: borderRadius['2xl'],
         borderTopRightRadius: borderRadius['2xl'],
         maxHeight: '85%',
         padding: spacing.lg,
-        borderTopWidth: 1,
-        borderTopColor: colors.slate[800],
     },
     modalHeader: {
         flexDirection: 'row',
@@ -477,7 +489,7 @@ const styles = StyleSheet.create({
         marginBottom: spacing.md,
         paddingBottom: spacing.sm,
         borderBottomWidth: 1,
-        borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+        borderBottomColor: colors.slate[100],
     },
     modalTitle: {
         fontSize: typography.fontSize.lg,
@@ -491,42 +503,33 @@ const styles = StyleSheet.create({
         maxHeight: 340,
         marginVertical: spacing.sm,
     },
-    label: {
-        fontSize: typography.fontSize.sm,
-        fontWeight: '600',
-        color: colors.slate[300],
-        marginBottom: spacing.xs,
-    },
-    categoryRow: {
+    flagToggle: {
         flexDirection: 'row',
-        gap: spacing.sm,
-        marginBottom: spacing.md,
-    },
-    categoryChip: {
-        flex: 1,
-        backgroundColor: colors.background.card,
-        paddingVertical: spacing.sm,
-        borderRadius: borderRadius.md,
         alignItems: 'center',
+        padding: spacing.md,
+        borderRadius: borderRadius.lg,
+        backgroundColor: colors.slate[50],
         borderWidth: 1,
-        borderColor: colors.slate[800],
+        borderColor: colors.slate[200],
+        marginTop: spacing.sm,
     },
-    categoryChipActive: {
-        backgroundColor: 'rgba(139, 92, 246, 0.2)',
-        borderColor: colors.primary[500],
+    flagToggleActive: {
+        backgroundColor: 'rgba(217, 119, 6, 0.08)',
+        borderColor: 'rgba(217, 119, 6, 0.3)',
     },
-    categoryChipWarning: {
-        backgroundColor: 'rgba(245, 158, 11, 0.2)',
-        borderColor: colors.standby[500],
+    flagTextWrap: {
+        marginLeft: spacing.sm,
+        flex: 1,
     },
-    categoryText: {
+    flagTitle: {
         fontSize: typography.fontSize.xs,
-        color: colors.slate[400],
-        fontWeight: '600',
-    },
-    categoryTextActive: {
-        color: colors.text.primary,
         fontWeight: '700',
+        color: colors.text.primary,
+    },
+    flagSub: {
+        fontSize: 11,
+        color: colors.text.muted,
+        marginTop: 1,
     },
     modalFooter: {
         marginTop: spacing.md,

@@ -1,113 +1,85 @@
 /**
  * ModelCard - Molecule
- * Displays on-device / hybrid AI model configuration, memory usage, and download triggers
+ * Card representing an AI Model (On-Device Gemma 4 / Qwen 3.5, LAN Ollama, Cloud)
  */
 
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Linking } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../atoms/Card';
 import { Badge } from '../atoms/Badge';
 import { AIModel } from '../../services/aiEngine';
-import { colors, spacing, typography, borderRadius } from '../../theme';
+import { colors, spacing, typography, borderRadius, shadows } from '../../theme';
 
 interface ModelCardProps {
     model: AIModel;
     isActive: boolean;
     onSelect: () => void;
-    onDownloadGuide?: () => void;
 }
 
 export const ModelCard: React.FC<ModelCardProps> = ({
     model,
     isActive,
     onSelect,
-    onDownloadGuide,
 }) => {
-    const isOnline = model.type === 'cloud';
-    const isLan = model.type === 'lan-desktop';
-
-    const getBadge = () => {
-        if (isOnline) return { label: 'ONLINE CLOUD', variant: 'info' as const };
-        if (isLan) return { label: 'DESKTOP LAN', variant: 'accent' as const };
-        return { label: 'ON-DEVICE SLM', variant: 'primary' as const };
-    };
-
-    const badgeInfo = getBadge();
-
-    const handleOpenLink = () => {
-        if (model.downloadUrl) {
-            Linking.openURL(model.downloadUrl).catch(err =>
-                console.warn('Cannot open download URL:', err)
-            );
+    const getTypeBadge = () => {
+        switch (model.type) {
+            case 'on-device':
+                return <Badge label="ON-DEVICE SLM" variant="accent" size="sm" />;
+            case 'lan-desktop':
+                return <Badge label="LOCAL WIFI LAN" variant="info" size="sm" />;
+            case 'cloud':
+                return <Badge label="CLOUD FALLBACK" variant="default" size="sm" />;
         }
     };
 
     return (
         <Card
-            variant={isActive ? 'glowViolet' : 'default'}
-            style={[styles.card, isActive && styles.activeCard]}
+            variant={isActive ? 'glowBlue' : 'default'}
+            style={isActive ? StyleSheet.flatten([styles.card, styles.activeCard]) : styles.card}
         >
-            <TouchableOpacity onPress={onSelect} activeOpacity={0.8}>
-                {/* Header */}
+            <TouchableOpacity onPress={onSelect} activeOpacity={0.7}>
                 <View style={styles.headerRow}>
+                    <View style={[styles.iconBox, { backgroundColor: isActive ? 'rgba(2, 132, 199, 0.1)' : colors.slate[100] }]}>
+                        <Ionicons
+                            name={model.type === 'on-device' ? 'hardware-chip' : model.type === 'lan-desktop' ? 'wifi' : 'cloud'}
+                            size={20}
+                            color={isActive ? colors.primary[600] : colors.slate[500]}
+                        />
+                    </View>
+
                     <View style={styles.titleWrap}>
-                        <Text style={styles.title}>{model.name}</Text>
+                        <View style={styles.nameRow}>
+                            <Text style={styles.name}>{model.name}</Text>
+                            {isActive && (
+                                <Ionicons name="checkmark-circle" size={18} color={colors.primary[500]} />
+                            )}
+                        </View>
                         <Text style={styles.modelKey}>{model.modelKey}</Text>
                     </View>
-                    <Badge label={badgeInfo.label} variant={badgeInfo.variant} size="sm" />
                 </View>
 
                 {/* Description */}
-                <Text style={styles.description}>{model.description}</Text>
+                <Text style={styles.description} numberOfLines={2}>
+                    {model.description}
+                </Text>
 
-                {/* Specs / Meta */}
-                <View style={styles.specsRow}>
-                    {!isOnline && !isLan && (
-                        <View style={styles.specItem}>
-                            <Ionicons name="hardware-chip-outline" size={14} color={colors.primary[400]} />
-                            <Text style={styles.specText}>{model.sizeMb} MB Model</Text>
-                        </View>
-                    )}
-
-                    <View style={styles.specItem}>
-                        <Ionicons name="layers-outline" size={14} color={colors.accent[400]} />
-                        <Text style={styles.specText}>{model.contextLength} Context</Text>
+                {/* Footer Info */}
+                <View style={styles.footerRow}>
+                    <View style={styles.metaWrap}>
+                        {getTypeBadge()}
+                        {model.sizeMb > 0 && (
+                            <Text style={styles.sizeText}>{model.sizeMb} MB</Text>
+                        )}
                     </View>
-
-                    {model.localPath && (
-                        <View style={styles.specItem}>
-                            <Ionicons name="folder-outline" size={14} color={colors.standby[400]} />
-                            <Text style={styles.specText}>assets/models/</Text>
-                        </View>
-                    )}
-                </View>
-
-                {/* Actions & Active Selector */}
-                <View style={styles.actionsRow}>
-                    {model.downloadUrl && (
-                        <TouchableOpacity
-                            onPress={handleOpenLink}
-                            style={styles.downloadLink}
-                            activeOpacity={0.7}
-                        >
-                            <Ionicons name="cloud-download-outline" size={14} color={colors.accent[400]} />
-                            <Text style={styles.downloadText}>Download GGUF</Text>
-                        </TouchableOpacity>
-                    )}
 
                     <TouchableOpacity
                         onPress={onSelect}
-                        style={[styles.selectButton, isActive && styles.activeSelectButton]}
+                        style={[styles.actionBtn, isActive ? styles.activeActionBtn : styles.inactiveActionBtn]}
                         activeOpacity={0.8}
                     >
-                        <Ionicons
-                            name={isActive ? 'checkmark-circle' : 'ellipse-outline'}
-                            size={16}
-                            color={isActive ? '#FFFFFF' : colors.slate[400]}
-                        />
-                        <Text style={[styles.selectText, isActive && styles.activeSelectText]}>
-                            {isActive ? 'ACTIVE ENGINE' : 'SELECT'}
+                        <Text style={[styles.actionBtnText, isActive && styles.activeActionBtnText]}>
+                            {isActive ? 'ACTIVE' : 'SELECT'}
                         </Text>
                     </TouchableOpacity>
                 </View>
@@ -118,97 +90,90 @@ export const ModelCard: React.FC<ModelCardProps> = ({
 
 const styles = StyleSheet.create({
     card: {
-        marginBottom: spacing.md,
+        marginBottom: spacing.sm + 4,
+        backgroundColor: '#FFFFFF',
+        borderWidth: 1,
+        borderColor: 'rgba(15, 23, 42, 0.08)',
+        ...shadows.subtle,
     },
     activeCard: {
         borderColor: colors.primary[500],
+        borderWidth: 1.5,
     },
     headerRow: {
         flexDirection: 'row',
-        alignItems: 'flex-start',
-        justifyContent: 'space-between',
+        alignItems: 'center',
         marginBottom: spacing.xs,
+    },
+    iconBox: {
+        width: 40,
+        height: 40,
+        borderRadius: borderRadius.md,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: spacing.sm,
     },
     titleWrap: {
         flex: 1,
-        marginRight: spacing.sm,
     },
-    title: {
-        fontSize: typography.fontSize.base,
+    nameRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    name: {
+        fontSize: typography.fontSize.sm + 1,
         fontWeight: '700',
         color: colors.text.primary,
     },
     modelKey: {
-        fontSize: typography.fontSize.xs,
-        color: colors.slate[400],
+        fontSize: 11,
+        color: colors.text.muted,
         marginTop: 1,
+        fontFamily: 'monospace',
     },
     description: {
-        fontSize: typography.fontSize.sm,
-        color: colors.slate[300],
-        lineHeight: 20,
-        marginVertical: spacing.sm,
-    },
-    specsRow: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: spacing.md,
-        marginVertical: spacing.xs,
-        paddingTop: spacing.xs,
-    },
-    specItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    specText: {
         fontSize: typography.fontSize.xs,
-        color: colors.slate[400],
-        marginLeft: 4,
+        color: colors.text.secondary,
+        lineHeight: 18,
+        marginVertical: spacing.xs,
     },
-    actionsRow: {
+    footerRow: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginTop: spacing.md,
-        paddingTop: spacing.sm,
+        paddingTop: spacing.xs,
+        marginTop: spacing.xs,
         borderTopWidth: 1,
-        borderTopColor: 'rgba(255, 255, 255, 0.05)',
+        borderTopColor: colors.slate[100],
     },
-    downloadLink: {
+    metaWrap: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 4,
-        paddingHorizontal: spacing.sm,
-        backgroundColor: 'rgba(6, 182, 212, 0.1)',
-        borderRadius: borderRadius.sm,
-        borderWidth: 1,
-        borderColor: 'rgba(6, 182, 212, 0.25)',
+        gap: spacing.xs,
     },
-    downloadText: {
-        fontSize: typography.fontSize.xs,
-        color: colors.accent[300],
+    sizeText: {
+        fontSize: 11,
+        color: colors.text.muted,
         fontWeight: '600',
-        marginLeft: 4,
     },
-    selectButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 6,
+    actionBtn: {
+        paddingVertical: 4,
         paddingHorizontal: spacing.md,
-        borderRadius: borderRadius.md,
-        backgroundColor: colors.slate[800],
-        marginLeft: 'auto',
+        borderRadius: borderRadius.full,
     },
-    activeSelectButton: {
-        backgroundColor: colors.primary[600],
+    inactiveActionBtn: {
+        backgroundColor: colors.slate[100],
     },
-    selectText: {
-        fontSize: typography.fontSize.xs,
+    activeActionBtn: {
+        backgroundColor: colors.primary[500],
+    },
+    actionBtnText: {
+        fontSize: 11,
         fontWeight: '700',
-        color: colors.slate[300],
-        marginLeft: 6,
+        color: colors.text.secondary,
     },
-    activeSelectText: {
+    activeActionBtnText: {
         color: '#FFFFFF',
     },
 });

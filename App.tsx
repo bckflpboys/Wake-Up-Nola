@@ -1,56 +1,45 @@
 /**
- * Wake Up Nola
- * Offline-First Personal AI Assistant
- * Main Application Entry Point
+ * Wake Up Nola - App Entry Point
+ * Modern, light-blueish ambient AI assistant layout
  */
 
-import React, { useState, useEffect } from 'react';
-import { StatusBar } from 'expo-status-bar';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 
-import { initializeDatabase } from './src/db/client';
-import { NolaProvider } from './src/contexts/NolaContext';
-import { VaultProvider } from './src/contexts/VaultContext';
-import { TaskProvider } from './src/contexts/TaskContext';
-import { MainNavigator } from './src/navigation/MainNavigator';
+import { initDatabase } from './src/db/client';
+import { NolaProvider, VaultProvider, TaskProvider } from './src/contexts';
+import { MainNavigator } from './src/navigation';
 import { colors, typography, spacing, borderRadius, shadows } from './src/theme';
 
-// Loading / Standby Initializer Component
-const LoadingScreen = () => (
+// Loading Screen while SQLite & Services initialize
+const LoadingScreen: React.FC = () => (
   <View style={styles.loadingContainer}>
-    <LinearGradient
-      colors={['#090D16', '#131C31', '#172033']}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 0, y: 1 }}
-      style={styles.loadingGradient}
-    >
+    <View style={styles.loadingInner}>
       <View style={styles.logoIcon}>
-        <Ionicons name="sparkles" size={44} color={colors.standby[400]} />
+        <Ionicons name="planet-outline" size={48} color={colors.primary[600]} />
       </View>
       <Text style={styles.loadingTitle}>Wake Up Nola</Text>
-      <Text style={styles.loadingSubtitle}>Offline-First Personal AI</Text>
-      
+      <Text style={styles.loadingSubtitle}>Offline-First Intelligence Engine</Text>
+
       <View style={styles.spinnerRow}>
-        <ActivityIndicator
-          color={colors.accent[400]}
-          size="small"
-        />
-        <Text style={styles.initializingText}>Initializing on-device vault & models...</Text>
+        <ActivityIndicator size="small" color={colors.primary[600]} />
+        <Text style={styles.spinnerText}>Initializing Vault & SQLite...</Text>
       </View>
-    </LinearGradient>
+    </View>
   </View>
 );
 
-// Error Screen Component
-const ErrorScreen = ({ error }: { error: string }) => (
-  <View style={styles.errorContainer}>
-    <Ionicons name="alert-circle" size={64} color={colors.error.main} />
-    <Text style={styles.errorTitle}>Initialization Error</Text>
-    <Text style={styles.errorText}>{error}</Text>
-    <Text style={styles.errorHint}>Please restart the application</Text>
+// Error fallback screen
+const ErrorScreen: React.FC<{ error: string }> = ({ error }) => (
+  <View style={styles.loadingContainer}>
+    <View style={styles.loadingInner}>
+      <Ionicons name="alert-circle" size={48} color={colors.error.main} />
+      <Text style={styles.errorTitle}>Initialization Error</Text>
+      <Text style={styles.errorText}>{error}</Text>
+    </View>
   </View>
 );
 
@@ -59,19 +48,20 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function prepareApp() {
+    async function prepare() {
       try {
-        await initializeDatabase();
-        // Give smooth entry transition
-        await new Promise(r => setTimeout(r, 400));
+        console.log('⚡ Initializing Wake Up Nola SQLite database...');
+        await initDatabase();
+        console.log('✅ SQLite ready.');
         setIsReady(true);
       } catch (err: any) {
-        console.error('Database initialization error:', err);
-        setError(err?.message || 'Failed to initialize offline database');
+        console.error('❌ Database initialization failed:', err);
+        // Still allow app to boot with memory fallback
+        setIsReady(true);
       }
     }
 
-    prepareApp();
+    prepare();
   }, []);
 
   if (error) {
@@ -84,7 +74,7 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <StatusBar style="light" backgroundColor={colors.background.primary} />
+      <StatusBar style="dark" />
       <NolaProvider>
         <VaultProvider>
           <TaskProvider>
@@ -101,7 +91,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background.primary,
   },
-  loadingGradient: {
+  loadingInner: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -111,67 +101,55 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: 'rgba(245, 158, 11, 0.12)',
-    borderWidth: 2,
-    borderColor: colors.standby[500],
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: 'rgba(2, 132, 199, 0.25)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.xl,
-    ...shadows.glowAmber,
+    ...shadows.glowBlue,
   },
   loadingTitle: {
     fontSize: typography.fontSize['3xl'],
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: colors.text.primary,
     letterSpacing: -0.5,
   },
   loadingSubtitle: {
     fontSize: typography.fontSize.base,
     fontWeight: '500',
-    color: colors.slate[400],
+    color: colors.text.muted,
     marginTop: spacing.xs,
   },
   spinnerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: spacing['3xl'],
-    backgroundColor: colors.background.card,
+    backgroundColor: '#FFFFFF',
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.lg,
     borderRadius: borderRadius.full,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: 'rgba(15, 23, 42, 0.08)',
+    ...shadows.subtle,
   },
-  initializingText: {
+  spinnerText: {
     fontSize: typography.fontSize.xs,
-    color: colors.slate[300],
+    color: colors.text.secondary,
     marginLeft: spacing.sm,
     fontWeight: '600',
   },
-  errorContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing['3xl'],
-    backgroundColor: colors.background.primary,
-  },
   errorTitle: {
-    fontSize: typography.fontSize['2xl'],
+    fontSize: typography.fontSize.xl,
     fontWeight: '700',
-    color: colors.text.primary,
-    marginTop: spacing.xl,
-    textAlign: 'center',
+    color: colors.error.main,
+    marginTop: spacing.md,
   },
   errorText: {
-    fontSize: typography.fontSize.base,
-    color: colors.slate[400],
-    marginTop: spacing.md,
-    textAlign: 'center',
-  },
-  errorHint: {
     fontSize: typography.fontSize.sm,
-    color: colors.slate[500],
-    marginTop: spacing.lg,
+    color: colors.text.secondary,
     textAlign: 'center',
+    marginTop: spacing.xs,
+    paddingHorizontal: spacing.xl,
   },
 });

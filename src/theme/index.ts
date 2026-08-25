@@ -1,53 +1,75 @@
 /**
  * Wake Up Nola - Design System & Theme
- * Sleek, high-contrast dark & ambient theme with glowing accents
+ * Modern, airy light-blueish aesthetic with crisp white cards, deep navy text,
+ * and vibrant dark-colorful accent pills (inspired by VoxCode UI).
  */
 
 export const colors = {
-    // Brand Colors (Cyber Violet & Electric Iris)
+    // Primary Backgrounds (Airy White-Light Blueish)
+    background: {
+        primary: '#EEF4FA', // Soft Light-Blue Background
+        secondary: '#E2ECF7', // Slightly Deeper Surface
+        tertiary: '#D7E4F2', // Elevated Borders
+        card: '#FFFFFF', // Crisp Clean White Card
+        cardSubtle: 'rgba(255, 255, 255, 0.75)',
+        cardHover: '#F8FAFC',
+        overlay: 'rgba(15, 23, 42, 0.45)',
+        input: '#FFFFFF',
+    },
+
+    // Brand Colors (Cyber Cyan & Electric Blue)
     primary: {
-        50: '#F5F3FF',
-        100: '#EDE9FE',
-        200: '#DDD6FE',
-        300: '#C4B5FD',
-        400: '#A78BFA',
-        500: '#8B5CF6', // Main Vibrant Violet
-        600: '#7C3AED',
-        700: '#6D28D9',
-        800: '#5B21B6',
-        900: '#4C1D95',
-        950: '#2E1065',
+        50: '#F0F7FF',
+        100: '#E0EFFF',
+        200: '#BAE0FF',
+        300: '#7CC4FA',
+        400: '#38A5F4',
+        500: '#0284C7', // Electric Deep Cyan
+        600: '#0369A1',
+        700: '#075985',
+        800: '#0C4A6E',
+        900: '#082F49',
     },
 
-    // Standby & Action Accent (Cyber Cyan & Teal)
+    // Accent Colors
     accent: {
-        50: '#ECFEFF',
-        100: '#CFFAFE',
-        200: '#A5F3FC',
-        300: '#67E8F9',
-        400: '#22D3EE',
-        500: '#06B6D4', // Vibrant Neon Cyan
-        600: '#0891B2',
-        700: '#0E7490',
-        800: '#155E75',
-        900: '#164E63',
+        50: '#F0FDFA',
+        100: '#CCFBF1',
+        200: '#99F6E4',
+        300: '#5EEAD4',
+        400: '#2DD4BF',
+        500: '#0D9488', // Vibrant Teal
+        600: '#0F766E',
+        700: '#115E59',
+        800: '#134E4A',
+        900: '#042F2E',
     },
 
-    // Standby Pulse Glow (Warm Amber / Solar)
+    // Standby & Solar Glow
     standby: {
         50: '#FFFBEB',
         100: '#FEF3C7',
         200: '#FDE68A',
         300: '#FCD34D',
         400: '#FBBF24',
-        500: '#F59E0B', // Glowing Standby Amber
-        600: '#D97706',
-        700: '#B45309',
-        800: '#92400E',
-        900: '#78350F',
+        500: '#D97706',
+        600: '#B45309',
+        700: '#92400E',
+        800: '#78350F',
     },
 
-    // Neutral Colors (Deep Obsidian & Slate)
+    // Text & Neutral Hierarchy (Deep Navy / Slate)
+    text: {
+        primary: '#090D16', // Bold Deep Navy
+        secondary: '#334155', // Slate Grey
+        muted: '#64748B', // Soft Muted Blue-Grey
+        light: '#94A3B8',
+        inverse: '#FFFFFF',
+        accent: '#0284C7',
+        teal: '#0D9488',
+        violet: '#6D28D9',
+    },
+
     slate: {
         50: '#F8FAFC',
         100: '#F1F5F9',
@@ -58,64 +80,63 @@ export const colors = {
         600: '#475569',
         700: '#334155',
         800: '#1E293B',
-        850: '#172033',
         900: '#0F172A',
-        950: '#090D16', // Deep Space Background
+        950: '#020617',
+    },
+
+    // Vibrant Colorful Accent Pills (For quick action tags)
+    tags: {
+        emeraldBg: '#064E3B',
+        emeraldText: '#FFFFFF',
+        navyBg: '#0C4A6E',
+        navyText: '#FFFFFF',
+        tealBg: '#0F766E',
+        tealText: '#FFFFFF',
+        amberBg: '#78350F',
+        amberText: '#FFFFFF',
+        violetBg: '#4C1D95',
+        violetText: '#FFFFFF',
+        cyanBg: '#00838F',
+        cyanText: '#FFFFFF',
     },
 
     // Semantic Colors
     success: {
         light: '#ECFDF5',
-        main: '#10B981',
-        dark: '#059669',
-        glow: 'rgba(16, 185, 129, 0.25)',
+        main: '#059669',
+        dark: '#047857',
+        border: '#A7F3D0',
     },
     error: {
         light: '#FEF2F2',
-        main: '#F43F5E',
-        dark: '#E11D48',
-        glow: 'rgba(244, 63, 94, 0.25)',
+        main: '#E11D48',
+        dark: '#BE123C',
+        border: '#FECDD3',
     },
     warning: {
         light: '#FFFBEB',
-        main: '#F59E0B',
-        dark: '#D97706',
-        glow: 'rgba(245, 158, 11, 0.25)',
+        main: '#D97706',
+        dark: '#B45309',
+        border: '#FDE68A',
     },
     info: {
         light: '#EFF6FF',
-        main: '#38BDF8',
-        dark: '#0284C7',
-        glow: 'rgba(56, 189, 248, 0.25)',
-    },
-
-    // Backgrounds
-    background: {
-        primary: '#090D16', // Deepest Obsidian
-        secondary: '#0F172A', // Card & Surface
-        tertiary: '#1E293B', // Border / Elevated
-        overlay: 'rgba(9, 13, 22, 0.85)',
-        card: '#131C31',
-        cardHover: '#1A2542',
-    },
-
-    // Text Colors
-    text: {
-        primary: '#F8FAFC',
-        secondary: '#94A3B8',
-        muted: '#64748B',
-        inverse: '#090D16',
-        accent: '#22D3EE',
-        violet: '#A78BFA',
+        main: '#0284C7',
+        dark: '#0369A1',
+        border: '#BAE6FD',
     },
 
     // Gradients
     gradients: {
-        primary: ['#7C3AED', '#4F46E5'],
-        cyanGlow: ['#06B6D4', '#3B82F6'],
-        standby: ['#F59E0B', '#EC4899'],
-        darkSurface: ['#131C31', '#0F172A'],
-        subtleCard: ['#172033', '#0E1524'],
+        primary: ['#0284C7', '#0369A1'],
+        cyanGlow: ['#06B6D4', '#0284C7'],
+        cardSurface: ['#FFFFFF', '#F8FAFC'],
+        lightBg: ['#F1F6FB', '#E5EFF9'],
+        emeraldTag: ['#064E3B', '#047857'],
+        violetTag: ['#4C1D95', '#6D28D9'],
+        amberTag: ['#78350F', '#B45309'],
+        navyTag: ['#0C4A6E', '#0369A1'],
+        orb: ['#1E293B', '#0F172A'],
     },
 };
 
@@ -162,8 +183,8 @@ export const borderRadius = {
     md: 10,
     lg: 14,
     xl: 18,
-    '2xl': 24,
-    '3xl': 30,
+    '2xl': 22,
+    '3xl': 28,
     full: 9999,
 };
 
@@ -175,47 +196,47 @@ export const shadows = {
         shadowRadius: 0,
         elevation: 0,
     },
-    sm: {
-        shadowColor: '#000',
+    subtle: {
+        shadowColor: '#64748B',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 3,
+        shadowOpacity: 0.08,
+        shadowRadius: 6,
+        elevation: 2,
+    },
+    sm: {
+        shadowColor: '#0F172A',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 4,
         elevation: 2,
     },
     md: {
-        shadowColor: '#000',
+        shadowColor: '#0F172A',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.35,
-        shadowRadius: 6,
+        shadowOpacity: 0.09,
+        shadowRadius: 10,
         elevation: 4,
     },
     lg: {
-        shadowColor: '#000',
+        shadowColor: '#0F172A',
         shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.45,
-        shadowRadius: 12,
+        shadowOpacity: 0.12,
+        shadowRadius: 18,
         elevation: 8,
     },
-    glowViolet: {
-        shadowColor: '#8B5CF6',
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.6,
-        shadowRadius: 16,
-        elevation: 10,
-    },
-    glowCyan: {
-        shadowColor: '#06B6D4',
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.6,
-        shadowRadius: 16,
-        elevation: 10,
+    glowBlue: {
+        shadowColor: '#0284C7',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 14,
+        elevation: 6,
     },
     glowAmber: {
-        shadowColor: '#F59E0B',
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.7,
-        shadowRadius: 20,
-        elevation: 12,
+        shadowColor: '#D97706',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 14,
+        elevation: 6,
     },
 };
 

@@ -28,6 +28,7 @@ if (!db) {
 }
 
 export { db, expoDb };
+export const initDatabase = initializeDatabase;
 
 /**
  * Initialize all Wake Up Nola SQLite Tables

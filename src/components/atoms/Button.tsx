@@ -1,6 +1,6 @@
 /**
  * Button Component - Atom
- * Premium button with multiple variants and states
+ * Premium button with multiple variants and states for modern light UI
  */
 
 import React from 'react';
@@ -12,12 +12,11 @@ import {
     ViewStyle,
     TextStyle,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { colors, borderRadius, shadows, typography, spacing } from '../../theme';
 
 interface ButtonProps {
     label: string;
-    variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'success' | 'warning';
+    variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'success' | 'dark';
     size?: 'sm' | 'md' | 'lg';
     onPress?: () => void;
     disabled?: boolean;
@@ -43,15 +42,15 @@ export const Button = ({
     const isDisabled = disabled || loading;
 
     const sizeStyles = {
-        sm: { paddingVertical: spacing.sm, paddingHorizontal: spacing.md },
-        md: { paddingVertical: spacing.md + 2, paddingHorizontal: spacing.xl },
-        lg: { paddingVertical: spacing.lg, paddingHorizontal: spacing['2xl'] },
+        sm: { paddingVertical: spacing.xs + 2, paddingHorizontal: spacing.md },
+        md: { paddingVertical: spacing.sm + 4, paddingHorizontal: spacing.xl },
+        lg: { paddingVertical: spacing.md, paddingHorizontal: spacing['2xl'] },
     };
 
     const textSizes = {
-        sm: typography.fontSize.sm,
-        md: typography.fontSize.base,
-        lg: typography.fontSize.lg,
+        sm: typography.fontSize.xs,
+        md: typography.fontSize.sm,
+        lg: typography.fontSize.base,
     };
 
     const getVariantStyles = (): { container: ViewStyle; text: TextStyle } => {
@@ -60,6 +59,11 @@ export const Button = ({
                 return {
                     container: styles.secondaryContainer,
                     text: styles.secondaryText,
+                };
+            case 'dark':
+                return {
+                    container: styles.darkContainer,
+                    text: styles.darkText,
                 };
             case 'outline':
                 return {
@@ -81,11 +85,6 @@ export const Button = ({
                     container: styles.successContainer,
                     text: styles.successText,
                 };
-            case 'warning':
-                return {
-                    container: styles.warningContainer,
-                    text: styles.warningText,
-                };
             default:
                 return {
                     container: styles.primaryContainer,
@@ -96,11 +95,25 @@ export const Button = ({
 
     const variantStyles = getVariantStyles();
 
-    const content = (
-        <>
+    return (
+        <TouchableOpacity
+            onPress={onPress}
+            disabled={isDisabled}
+            activeOpacity={0.8}
+            style={[
+                styles.baseContainer,
+                variantStyles.container,
+                sizeStyles[size],
+                variant === 'primary' && shadows.glowBlue,
+                variant === 'dark' && shadows.sm,
+                fullWidth && styles.fullWidth,
+                isDisabled && styles.disabledContainer,
+                style,
+            ]}
+        >
             {loading ? (
                 <ActivityIndicator
-                    color={variant === 'outline' || variant === 'ghost' ? colors.primary[500] : 'white'}
+                    color={variant === 'outline' || variant === 'ghost' ? colors.primary[500] : '#FFFFFF'}
                     size="small"
                 />
             ) : (
@@ -121,51 +134,6 @@ export const Button = ({
                     {icon && iconPosition === 'right' && icon}
                 </>
             )}
-        </>
-    );
-
-    // Use gradient for primary variant
-    if (variant === 'primary' && !isDisabled) {
-        return (
-            <TouchableOpacity
-                onPress={onPress}
-                disabled={isDisabled}
-                activeOpacity={0.8}
-                style={[fullWidth && styles.fullWidth, style]}
-            >
-                <LinearGradient
-                    colors={colors.gradients.primary as any}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={[
-                        styles.baseContainer,
-                        sizeStyles[size],
-                        shadows.md,
-                        isDisabled && styles.disabledContainer,
-                    ]}
-                >
-                    {content}
-                </LinearGradient>
-            </TouchableOpacity>
-        );
-    }
-
-    return (
-        <TouchableOpacity
-            onPress={onPress}
-            disabled={isDisabled}
-            activeOpacity={0.7}
-            style={[
-                styles.baseContainer,
-                variantStyles.container,
-                sizeStyles[size],
-                variant !== 'ghost' && shadows.sm,
-                fullWidth && styles.fullWidth,
-                isDisabled && styles.disabledContainer,
-                style,
-            ]}
-        >
-            {content}
         </TouchableOpacity>
     );
 };
@@ -181,7 +149,7 @@ const styles = StyleSheet.create({
         width: '100%',
     },
     baseText: {
-        fontWeight: '600',
+        fontWeight: '700',
         textAlign: 'center',
     },
 
@@ -193,22 +161,32 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
     },
 
+    // Dark
+    darkContainer: {
+        backgroundColor: colors.text.primary,
+    },
+    darkText: {
+        color: '#FFFFFF',
+    },
+
     // Secondary
     secondaryContainer: {
         backgroundColor: colors.slate[100],
+        borderWidth: 1,
+        borderColor: colors.slate[200],
     },
     secondaryText: {
-        color: colors.slate[700],
+        color: colors.text.primary,
     },
 
     // Outline
     outlineContainer: {
-        backgroundColor: 'transparent',
-        borderWidth: 2,
-        borderColor: colors.primary[500],
+        backgroundColor: '#FFFFFF',
+        borderWidth: 1.5,
+        borderColor: colors.slate[200],
     },
     outlineText: {
-        color: colors.primary[500],
+        color: colors.text.primary,
     },
 
     // Ghost
@@ -216,7 +194,7 @@ const styles = StyleSheet.create({
         backgroundColor: 'transparent',
     },
     ghostText: {
-        color: colors.primary[500],
+        color: colors.primary[600],
     },
 
     // Danger
@@ -232,14 +210,6 @@ const styles = StyleSheet.create({
         backgroundColor: colors.success.main,
     },
     successText: {
-        color: '#FFFFFF',
-    },
-
-    // Warning
-    warningContainer: {
-        backgroundColor: colors.warning.main,
-    },
-    warningText: {
         color: '#FFFFFF',
     },
 

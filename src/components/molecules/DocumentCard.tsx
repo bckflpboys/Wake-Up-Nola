@@ -9,7 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../atoms/Card';
 import { Badge } from '../atoms/Badge';
 import { VaultDocument } from '../../db/schema';
-import { colors, spacing, typography, borderRadius } from '../../theme';
+import { colors, spacing, typography, borderRadius, shadows } from '../../theme';
 
 interface DocumentCardProps {
     document: VaultDocument;
@@ -25,13 +25,13 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
     const getFileIcon = (type: string | null) => {
         switch (type) {
             case 'json':
-                return { name: 'code-slash' as const, color: colors.standby[400] };
+                return { name: 'code-slash' as const, color: colors.standby[600] };
             case 'markdown':
-                return { name: 'document-text' as const, color: colors.accent[400] };
+                return { name: 'document-text' as const, color: colors.primary[600] };
             case 'pdf':
                 return { name: 'reader' as const, color: colors.error.main };
             default:
-                return { name: 'document-outline' as const, color: colors.primary[400] };
+                return { name: 'document-outline' as const, color: colors.accent[600] };
         }
     };
 
@@ -41,8 +41,8 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
         <Card variant="default" style={styles.card}>
             <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
                 <View style={styles.headerRow}>
-                    <View style={[styles.iconBox, { backgroundColor: 'rgba(255, 255, 255, 0.05)' }]}>
-                        <Ionicons name={fileIcon.name} size={22} color={fileIcon.color} />
+                    <View style={[styles.iconBox, { backgroundColor: 'rgba(2, 132, 199, 0.08)' }]}>
+                        <Ionicons name={fileIcon.name} size={20} color={fileIcon.color} />
                     </View>
                     <View style={styles.titleWrap}>
                         <Text style={styles.title} numberOfLines={1}>{document.title}</Text>
@@ -50,7 +50,7 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
                     </View>
                     <Badge
                         label={document.fileType?.toUpperCase() || 'DOC'}
-                        variant="accent"
+                        variant="info"
                         size="sm"
                     />
                 </View>
@@ -65,7 +65,7 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
                     <View style={styles.metaWrap}>
                         <Text style={styles.metaText}>{document.wordCount || 0} words</Text>
                         <Text style={styles.metaDot}>•</Text>
-                        <Text style={styles.metaText}>Offline Indexed</Text>
+                        <Text style={styles.metaText}>Offline Synced</Text>
                     </View>
 
                     {onAskNolaAboutDoc && (
@@ -74,7 +74,7 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
                             style={styles.askButton}
                             activeOpacity={0.8}
                         >
-                            <Ionicons name="chatbubble-ellipses-outline" size={14} color={colors.accent[400]} />
+                            <Ionicons name="chatbubble-ellipses-outline" size={13} color={colors.primary[600]} />
                             <Text style={styles.askButtonText}>Ask Nola</Text>
                         </TouchableOpacity>
                     )}
@@ -86,75 +86,79 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
 
 const styles = StyleSheet.create({
     card: {
-        marginBottom: spacing.md,
+        marginBottom: spacing.sm + 4,
+        backgroundColor: '#FFFFFF',
+        borderWidth: 1,
+        borderColor: 'rgba(15, 23, 42, 0.08)',
+        ...shadows.subtle,
     },
     headerRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: spacing.sm,
+        marginBottom: spacing.xs,
     },
     iconBox: {
-        width: 40,
-        height: 40,
+        width: 36,
+        height: 36,
         borderRadius: borderRadius.md,
         alignItems: 'center',
         justifyContent: 'center',
-        marginRight: spacing.md,
+        marginRight: spacing.sm,
     },
     titleWrap: {
         flex: 1,
     },
     title: {
-        fontSize: typography.fontSize.base,
+        fontSize: typography.fontSize.sm + 1,
         fontWeight: '700',
         color: colors.text.primary,
     },
     filename: {
-        fontSize: typography.fontSize.xs,
-        color: colors.slate[400],
-        marginTop: 2,
+        fontSize: 11,
+        color: colors.text.muted,
+        marginTop: 1,
     },
     preview: {
-        fontSize: typography.fontSize.sm,
-        color: colors.slate[300],
-        lineHeight: 20,
-        marginBottom: spacing.md,
+        fontSize: typography.fontSize.xs,
+        color: colors.text.secondary,
+        lineHeight: 18,
+        marginVertical: spacing.xs,
     },
     footerRow: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingTop: spacing.sm,
+        paddingTop: spacing.xs,
         borderTopWidth: 1,
-        borderTopColor: 'rgba(255, 255, 255, 0.05)',
+        borderTopColor: colors.slate[100],
     },
     metaWrap: {
         flexDirection: 'row',
         alignItems: 'center',
     },
     metaText: {
-        fontSize: typography.fontSize.xs,
-        color: colors.slate[500],
+        fontSize: 11,
+        color: colors.text.muted,
     },
     metaDot: {
-        fontSize: typography.fontSize.xs,
-        color: colors.slate[500],
+        fontSize: 11,
+        color: colors.slate[300],
         marginHorizontal: spacing.xs,
     },
     askButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'rgba(6, 182, 212, 0.1)',
-        paddingVertical: 4,
+        backgroundColor: 'rgba(2, 132, 199, 0.08)',
+        paddingVertical: 3,
         paddingHorizontal: spacing.sm,
         borderRadius: borderRadius.full,
         borderWidth: 1,
-        borderColor: 'rgba(6, 182, 212, 0.3)',
+        borderColor: 'rgba(2, 132, 199, 0.2)',
     },
     askButtonText: {
-        fontSize: typography.fontSize.xs,
-        color: colors.accent[300],
-        fontWeight: '600',
+        fontSize: 11,
+        color: colors.primary[600],
+        fontWeight: '700',
         marginLeft: 4,
     },
 });

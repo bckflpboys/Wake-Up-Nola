@@ -1,6 +1,6 @@
 /**
  * StepExecutionViewer - Molecule
- * Visualizes the micro-agent task decomposition steps in real-time
+ * Visualizes micro-agent task decomposition steps in real-time
  */
 
 import React from 'react';
@@ -23,10 +23,10 @@ export const StepExecutionViewer: React.FC<StepExecutionViewerProps> = ({
     return (
         <View style={styles.container}>
             <View style={styles.headerRow}>
-                <Ionicons name="git-network-outline" size={16} color={colors.accent[400]} />
+                <Ionicons name="git-network-outline" size={14} color={colors.primary[600]} />
                 <Text style={styles.headerTitle}>Task Decomposition & Steps</Text>
                 {isProcessing && (
-                    <ActivityIndicator size="small" color={colors.accent[400]} style={styles.spinner} />
+                    <ActivityIndicator size="small" color={colors.primary[600]} style={styles.spinner} />
                 )}
             </View>
 
@@ -41,7 +41,7 @@ export const StepExecutionViewer: React.FC<StepExecutionViewerProps> = ({
                         <View style={styles.iconColumn}>
                             {isComplete && (
                                 <View style={[styles.statusCircle, styles.circleComplete]}>
-                                    <Ionicons name="checkmark" size={12} color="#FFFFFF" />
+                                    <Ionicons name="checkmark" size={11} color="#FFFFFF" />
                                 </View>
                             )}
                             {isRunning && (
@@ -51,7 +51,7 @@ export const StepExecutionViewer: React.FC<StepExecutionViewerProps> = ({
                             )}
                             {isFailed && (
                                 <View style={[styles.statusCircle, styles.circleFailed]}>
-                                    <Ionicons name="close" size={12} color="#FFFFFF" />
+                                    <Ionicons name="close" size={11} color="#FFFFFF" />
                                 </View>
                             )}
                             {!isComplete && !isRunning && !isFailed && (
@@ -86,25 +86,25 @@ export const StepExecutionViewer: React.FC<StepExecutionViewerProps> = ({
 
 const styles = StyleSheet.create({
     container: {
-        backgroundColor: 'rgba(15, 23, 42, 0.75)',
+        backgroundColor: colors.slate[50],
         borderWidth: 1,
-        borderColor: 'rgba(6, 182, 212, 0.25)',
-        borderRadius: borderRadius.lg,
-        padding: spacing.md,
-        marginVertical: spacing.sm,
+        borderColor: colors.slate[200],
+        borderRadius: borderRadius.md,
+        padding: spacing.sm,
+        marginVertical: spacing.xs,
     },
     headerRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: spacing.md,
-        paddingBottom: spacing.xs,
+        marginBottom: spacing.xs,
+        paddingBottom: 4,
         borderBottomWidth: 1,
-        borderBottomColor: 'rgba(255, 255, 255, 0.06)',
+        borderBottomColor: colors.slate[200],
     },
     headerTitle: {
-        fontSize: typography.fontSize.xs,
+        fontSize: 11,
         fontWeight: '700',
-        color: colors.accent[300],
+        color: colors.text.primary,
         marginLeft: spacing.xs,
         letterSpacing: 0.5,
         textTransform: 'uppercase',
@@ -115,17 +115,17 @@ const styles = StyleSheet.create({
     stepRow: {
         flexDirection: 'row',
         alignItems: 'flex-start',
-        marginBottom: spacing.sm,
+        marginBottom: 6,
     },
     iconColumn: {
         alignItems: 'center',
-        width: 24,
-        marginRight: spacing.sm,
+        width: 20,
+        marginRight: spacing.xs,
     },
     statusCircle: {
-        width: 20,
-        height: 20,
-        borderRadius: 10,
+        width: 18,
+        height: 18,
+        borderRadius: 9,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -133,44 +133,44 @@ const styles = StyleSheet.create({
         backgroundColor: colors.success.main,
     },
     circleRunning: {
-        backgroundColor: colors.accent[500],
+        backgroundColor: colors.primary[500],
     },
     circleFailed: {
         backgroundColor: colors.error.main,
     },
     circlePending: {
-        backgroundColor: colors.slate[700],
+        backgroundColor: colors.slate[300],
     },
     pendingNumber: {
-        fontSize: 10,
-        color: colors.slate[300],
+        fontSize: 9,
+        color: colors.slate[700],
         fontWeight: '700',
     },
     connectingLine: {
-        width: 2,
-        height: 16,
-        backgroundColor: colors.slate[800],
+        width: 1.5,
+        height: 12,
+        backgroundColor: colors.slate[300],
         marginTop: 2,
     },
     stepContent: {
         flex: 1,
     },
     stepTitle: {
-        fontSize: typography.fontSize.sm,
+        fontSize: typography.fontSize.xs,
         fontWeight: '600',
-        color: colors.slate[300],
+        color: colors.text.secondary,
     },
     stepTitleRunning: {
-        color: colors.accent[400],
+        color: colors.primary[600],
         fontWeight: '700',
     },
     stepTitleComplete: {
         color: colors.text.primary,
     },
     stepDetail: {
-        fontSize: typography.fontSize.xs,
-        color: colors.slate[400],
-        marginTop: 2,
+        fontSize: 10,
+        color: colors.text.muted,
+        marginTop: 1,
     },
 });
 

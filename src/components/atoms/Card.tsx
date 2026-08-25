@@ -1,6 +1,6 @@
 /**
  * Card Component - Atom
- * High contrast container card for dark cyberpunk theme
+ * High contrast container card for modern light aesthetic
  */
 
 import React, { ReactNode } from 'react';
@@ -10,7 +10,7 @@ import { colors, borderRadius, shadows, spacing } from '../../theme';
 interface CardProps {
     children: ReactNode;
     onPress?: () => void;
-    variant?: 'default' | 'elevated' | 'outlined' | 'glowViolet' | 'glowCyan' | 'glowAmber';
+    variant?: 'default' | 'elevated' | 'outlined' | 'glowBlue' | 'glowAmber' | 'glowTeal';
     padding?: 'none' | 'sm' | 'md' | 'lg';
     style?: ViewStyle;
 }
@@ -25,8 +25,8 @@ export const Card = ({
     const paddingStyles = {
         none: 0,
         sm: spacing.sm,
-        md: spacing.lg,
-        lg: spacing['2xl'],
+        md: spacing.md,
+        lg: spacing.lg,
     };
 
     const getVariantStyles = (): ViewStyle => {
@@ -34,43 +34,43 @@ export const Card = ({
             case 'elevated':
                 return {
                     ...shadows.lg,
-                    backgroundColor: colors.background.card,
+                    backgroundColor: '#FFFFFF',
                     borderWidth: 1,
-                    borderColor: colors.slate[800],
+                    borderColor: 'rgba(15, 23, 42, 0.06)',
                 };
             case 'outlined':
                 return {
                     borderWidth: 1,
-                    borderColor: colors.slate[700],
-                    backgroundColor: colors.background.secondary,
+                    borderColor: colors.slate[200],
+                    backgroundColor: '#FFFFFF',
                 };
-            case 'glowViolet':
+            case 'glowBlue':
                 return {
-                    ...shadows.glowViolet,
-                    backgroundColor: colors.background.card,
+                    ...shadows.glowBlue,
+                    backgroundColor: '#FFFFFF',
                     borderWidth: 1,
-                    borderColor: colors.primary[700],
-                };
-            case 'glowCyan':
-                return {
-                    ...shadows.glowCyan,
-                    backgroundColor: colors.background.card,
-                    borderWidth: 1,
-                    borderColor: colors.accent[600],
+                    borderColor: 'rgba(2, 132, 199, 0.3)',
                 };
             case 'glowAmber':
                 return {
-                    ...shadows.glowAmber,
-                    backgroundColor: colors.background.card,
+                    ...shadows.sm,
+                    backgroundColor: '#FFFFFF',
                     borderWidth: 1,
-                    borderColor: colors.standby[600],
+                    borderColor: 'rgba(217, 119, 6, 0.35)',
+                };
+            case 'glowTeal':
+                return {
+                    ...shadows.sm,
+                    backgroundColor: '#FFFFFF',
+                    borderWidth: 1,
+                    borderColor: 'rgba(13, 148, 136, 0.35)',
                 };
             default:
                 return {
-                    ...shadows.sm,
-                    backgroundColor: colors.background.card,
+                    ...shadows.subtle,
+                    backgroundColor: '#FFFFFF',
                     borderWidth: 1,
-                    borderColor: 'rgba(255, 255, 255, 0.07)',
+                    borderColor: 'rgba(15, 23, 42, 0.08)',
                 };
         }
     };
