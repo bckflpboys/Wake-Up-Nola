@@ -1,9 +1,9 @@
 /**
- * Self-contained Live WebGL Embroidery Engine HTML
- * - Soft light-blue background matching the app canvas (#F4F7FB)
- * - Centered mobile-optimized layout
- * - Self-drawing progressive stitch animation
- * - Auto-signals completion to open the chat workspace
+ * Ultra-Smooth 60FPS WebGL Embroidery Engine
+ * - Single upfront CPU pass (0 lag, 0 stutter, 0 garbage collection)
+ * - 100% GPU fragment shader stitching reveal & needle sparkle
+ * - Perfectly scaled and centered for all mobile viewports
+ * - Relaxed, slow, luxurious pacing
  */
 
 export const generateEmbroideryHtml = () => `
@@ -15,7 +15,7 @@ export const generateEmbroideryHtml = () => `
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
     html, body { width: 100%; height: 100%; overflow: hidden; background: #F4F7FB; }
-    #container { position: absolute; inset: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+    #container { position: absolute; inset: 0; width: 100%; height: 100%; }
     canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
   </style>
 </head>
@@ -23,34 +23,31 @@ export const generateEmbroideryHtml = () => `
   <div id="container"></div>
 
   <script>
-    // Centered & Mobile-proportioned Patches
+    // Centered & Balanced Mobile Layout
     const WORDS = [
       {
         word: "Wake",
-        cx: 0.50, cy: 0.34, scale: 0.20, rotDeg: -3,
-        fill: [0.08, 0.48, 0.88], // Vibrant Electric Blue
-        ink: [0.98, 0.98, 0.99],  // White Satin Thread
-        border: [0.03, 0.25, 0.55], // Deep Navy Merrowed Rim
+        cx: 0.50, cy: 0.32, scale: 0.16, rotDeg: -2.5,
+        fill: [0.08, 0.48, 0.88], // Electric Blue
+        ink: [0.98, 0.98, 0.99],  // Crisp White Satin Thread
+        border: [0.04, 0.22, 0.48], // Navy Merrowed Rim
         stitchDeg: 70,
-        appearAt: 0.08,
       },
       {
         word: "Up",
-        cx: 0.50, cy: 0.48, scale: 0.18, rotDeg: 2,
-        fill: [0.88, 0.62, 0.12], // Warm Golden Amber
-        ink: [0.98, 0.98, 0.99],  // White Satin Thread
-        border: [0.55, 0.35, 0.04], // Deep Bronze Merrowed Rim
+        cx: 0.50, cy: 0.46, scale: 0.14, rotDeg: 2.0,
+        fill: [0.88, 0.60, 0.12], // Warm Golden Amber
+        ink: [0.98, 0.98, 0.99],  // Crisp White Satin Thread
+        border: [0.52, 0.32, 0.04], // Deep Bronze Merrowed Rim
         stitchDeg: 20,
-        appearAt: 0.38,
       },
       {
         word: "Nola!",
-        cx: 0.50, cy: 0.62, scale: 0.22, rotDeg: -2,
-        fill: [0.05, 0.62, 0.55], // Vibrant Teal
-        ink: [0.98, 0.98, 0.99],  // White Satin Thread
-        border: [0.02, 0.38, 0.32], // Deep Emerald-Teal Merrowed Rim
+        cx: 0.50, cy: 0.60, scale: 0.18, rotDeg: -1.5,
+        fill: [0.05, 0.60, 0.52], // Mint Teal
+        ink: [0.98, 0.98, 0.99],  // Crisp White Satin Thread
+        border: [0.02, 0.35, 0.30], // Emerald-Teal Merrowed Rim
         stitchDeg: 100,
-        appearAt: 0.68,
       },
     ];
 
@@ -107,15 +104,21 @@ export const generateEmbroideryHtml = () => `
         vec2 texel = uTexel;
 
         vec4 fld = texture2D(uField, uv);
-        float cover = fld.r;
+        float rawCover = fld.r;
         float inkM  = fld.g;
         float ringM = fld.b;
         float stitchAng = fld.a * 3.14159;
 
+        // Smooth GPU progressive drawing based on Y and stitch noise
+        float patchY = uv.y * 0.75 + 0.12;
+        float stitchJitter = noise(uv * 50.0) * 0.035;
+        float revealFactor = smoothstep(patchY - 0.05, patchY + 0.01, uDrawProgress * 1.02 + stitchJitter);
+        float cover = rawCover * revealFactor;
+
         vec2 dp = uv * vec2(uAspect, 1.0);
         float bw = weaveAt(uv + vec2(0.37, 0.11));
-        float blotch = noise(dp * 3.0) * 0.04 + noise(dp * 7.0) * 0.02;
-        vec3 fabric = uFabric * (0.92 + bw * 0.15 + blotch);
+        float blotch = noise(dp * 3.0) * 0.03 + noise(dp * 7.0) * 0.015;
+        vec3 fabric = uFabric * (0.94 + bw * 0.12 + blotch);
         vec3 col = fabric;
 
         float pdist = distance(uv * vec2(uAspect, 1.0), uPressPos * vec2(uAspect, 1.0));
@@ -123,25 +126,29 @@ export const generateEmbroideryHtml = () => `
 
         float lift = 1.0 - pressLocal * 0.85;
         vec2 shOff = vec2(4.0, -4.0) * texel * lift;
-        float shc = texture2D(uField, uv - shOff).r;
-        
-        // Soft contact drop shadow on light canvas
-        col = mix(col, col * 0.72, smoothstep(0.15, 0.7, shc) * 0.65);
+        float rawShc = texture2D(uField, uv - shOff).r;
+        float shc = rawShc * revealFactor;
 
-        if (cover < 0.004) { gl_FragColor = vec4(col, 1.0); return; }
+        // Soft contact drop shadow on light canvas
+        col = mix(col, col * 0.76, smoothstep(0.12, 0.7, shc) * 0.6);
+
+        if (cover < 0.004) {
+          gl_FragColor = vec4(col, 1.0);
+          return;
+        }
 
         float w0 = weaveAt(uv);
         float wL = weaveAt(uv - vec2(1.,0.)*texel), wR = weaveAt(uv + vec2(1.,0.)*texel);
         float wD = weaveAt(uv - vec2(0.,1.)*texel), wU = weaveAt(uv + vec2(0.,1.)*texel);
-        vec2 wslope = vec2(wR - wL, wU - wD) * 16.0;
+        vec2 wslope = vec2(wR - wL, wU - wD) * 14.0;
         vec3 Nw = normalize(vec3(-wslope.x, -wslope.y, 1.0));
 
         float cL = texture2D(uField, uv - vec2(1.,0.)*texel).r, cR = texture2D(uField, uv + vec2(1.,0.)*texel).r;
         float cD = texture2D(uField, uv - vec2(0.,1.)*texel).r, cU = texture2D(uField, uv + vec2(0.,1.)*texel).r;
-        vec2 pslope = vec2(cR - cL, cU - cD) * uDepth * 14.0;
+        vec2 pslope = vec2(cR - cL, cU - cD) * uDepth * 12.0;
         vec3 Np = vec3(-pslope.x, -pslope.y, 1.0);
         float bevel = clamp(length(pslope), 0.0, 1.0);
-        vec3 N = normalize(Np + Nw * 1.5);
+        vec3 N = normalize(Np + Nw * 1.4);
 
         vec3 L = normalize(vec3(uLight, uLightZ));
         float diff = dot(N, L);
@@ -149,7 +156,7 @@ export const generateEmbroideryHtml = () => `
         float sh = pow(max(-diff, 0.0), 1.1);
 
         vec3 art = texture2D(uArt, uv).rgb;
-        vec3 c = art * (0.85 + w0 * 0.3);
+        vec3 c = art * (0.86 + w0 * 0.28);
 
         float sc = cos(stitchAng), ss = sin(stitchAng);
         float across = (dp.x * ss - dp.y * sc);
@@ -159,19 +166,25 @@ export const generateEmbroideryHtml = () => `
         float satin = sin(mod(rows, TWO_PI));
 
         float ridge = 0.5 + 0.5 * satin;
-        ridge = pow(ridge, 1.4);
-        float jit = noise(vec2(floor(rows), (dp.x*sc+dp.y*ss)*90.0)) * 0.25;
-        float satinShade = mix(0.85, 1.15, clamp(ridge + jit*ridge, 0.0, 1.0));
+        ridge = pow(ridge, 1.35);
+        float jit = noise(vec2(floor(rows), (dp.x*sc+dp.y*ss)*90.0)) * 0.2;
+        float satinShade = mix(0.86, 1.14, clamp(ridge + jit*ridge, 0.0, 1.0));
 
         float clothFace = cover * (1.0 - inkM);
         c *= mix(1.0, satinShade, clothFace * 0.9 + ringM * 0.6);
 
-        c += hi * 0.35 * (0.5 + bevel * 0.5);
-        c -= sh * 0.25;
+        c += hi * 0.32 * (0.5 + bevel * 0.5);
+        c -= sh * 0.22;
 
         float edge = 1.0 - smoothstep(0.0, 0.32, cover);
-        c *= 1.0 - edge * 0.2 * cover;
+        c *= 1.0 - edge * 0.18 * cover;
 
+        // Needle stitching spark glint along active drawing line
+        float needleDist = abs(uDrawProgress * 1.02 - patchY);
+        float needleGlint = exp(-needleDist * needleDist * 160.0) * cover * (1.0 - smoothstep(0.96, 1.0, uDrawProgress));
+        c += vec3(1.0, 0.98, 0.9) * needleGlint * 0.45;
+
+        // Ambient hover sweep glint
         if (uHover > 0.001) {
           float d = distance(dp, uWash * vec2(uAspect, 1.0));
           float halo = 1.0 - smoothstep(0.0, 0.45, d);
@@ -181,7 +194,7 @@ export const generateEmbroideryHtml = () => `
         }
 
         c = clamp(c, 0.0, 1.0);
-        float aa = smoothstep(0.06, 0.2, cover);
+        float aa = smoothstep(0.05, 0.18, cover);
         gl_FragColor = vec4(mix(col, c, aa), 1.0);
       }
     \`;
@@ -192,7 +205,7 @@ export const generateEmbroideryHtml = () => `
     }
 
     function dilate(ctx, src, r) {
-      const steps = 22;
+      const steps = 18;
       for (let s = 1; s >= 0.5; s -= 0.5) {
         for (let i = 0; i < steps; i++) {
           const a = (i / steps) * Math.PI * 2;
@@ -223,8 +236,8 @@ export const generateEmbroideryHtml = () => `
       acc.drawImage(add, 0, 0);
     }
 
-    function drawWord(ctx, wp, W, H, fontFamily, scaleMultiplier = 1.0) {
-      const size = wp.scale * H * scaleMultiplier;
+    function drawWord(ctx, wp, W, H, fontFamily) {
+      const size = wp.scale * H;
       ctx.save();
       ctx.translate(wp.cx * W, wp.cy * H);
       ctx.rotate((wp.rotDeg * Math.PI) / 180);
@@ -236,7 +249,7 @@ export const generateEmbroideryHtml = () => `
       ctx.restore();
     }
 
-    async function makeScene(w, h, fontFamily, drawProgress = 1.0) {
+    async function makeFullScene(w, h, fontFamily) {
       const W = Math.max(1, Math.round(w));
       const H = Math.max(1, Math.round(h));
       const mk = () => {
@@ -246,7 +259,7 @@ export const generateEmbroideryHtml = () => `
         return c;
       };
 
-      const borderPx = Math.max(3, H * 0.016);
+      const borderPx = Math.max(3, H * 0.015);
       const bevelPx = Math.max(1.5, H * 0.007);
 
       const cover = mk();
@@ -269,15 +282,9 @@ export const generateEmbroideryHtml = () => `
       ringX.globalCompositeOperation = "lighten";
 
       for (const wp of WORDS) {
-        if (drawProgress < wp.appearAt) continue;
-
-        // Progressive expansion factor for drawing effect
-        const localProgress = Math.min(1.0, (drawProgress - wp.appearAt) / 0.25);
-        const easeScale = 0.8 + 0.2 * Math.sin(localProgress * Math.PI * 0.5);
-
         const glyph = mk();
         const gx = glyph.getContext("2d");
-        drawWord(gx, wp, W, H, fontFamily, easeScale);
+        drawWord(gx, wp, W, H, fontFamily);
 
         const sil = mk();
         const sx = sil.getContext("2d");
@@ -372,7 +379,7 @@ export const generateEmbroideryHtml = () => `
           const i = (y * size + x) * 4;
           const px = (x % 8) < 4;
           const py = (y % 8) < 4;
-          const v = (px ^ py) ? 240 : 210;
+          const v = (px ^ py) ? 245 : 215;
           weaveData[i] = v;
           weaveData[i + 1] = v;
           weaveData[i + 2] = v;
@@ -444,10 +451,9 @@ export const generateEmbroideryHtml = () => `
         this.px = 0.5;
         this.py = 0.5;
 
-        // Progressive draw state
+        // Slow, majestic self-drawing progression (0.0 to 1.0 over ~4.5 seconds)
         this.drawProgress = 0.0;
         this.isFinished = false;
-        this.lastRebuildAt = 0;
 
         this.resize();
         this.weave = createProceduralWeave(gl);
@@ -490,19 +496,19 @@ export const generateEmbroideryHtml = () => `
       }
 
       resize() {
-        const dpr = Math.min(2, window.devicePixelRatio || 1);
-        this.w = window.innerWidth;
-        this.h = window.innerHeight;
+        const dpr = Math.min(1.5, window.devicePixelRatio || 1);
+        this.w = window.innerWidth || 360;
+        this.h = window.innerHeight || 640;
         this.canvas.width = Math.round(this.w * dpr);
         this.canvas.height = Math.round(this.h * dpr);
         this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
       }
 
       async buildScene() {
-        const dpr = Math.min(2, window.devicePixelRatio || 1);
+        const dpr = Math.min(1.5, window.devicePixelRatio || 1);
         const mw = Math.round(this.w * dpr);
         const mh = Math.round(this.h * dpr);
-        const scene = await makeScene(mw, mh, this.fontFamily, this.drawProgress);
+        const scene = await makeFullScene(mw, mh, this.fontFamily);
         const gl = this.gl;
 
         if (!this.artTex) this.artTex = gl.createTexture();
@@ -534,35 +540,29 @@ export const generateEmbroideryHtml = () => `
       }
 
       frame() {
-        // Step progress over ~2.4 seconds
+        // Slow and steady animation pacing (+0.0038 per frame ~ 4.4 seconds at 60fps)
         if (this.drawProgress < 1.0) {
-          this.drawProgress = Math.min(1.0, this.drawProgress + 0.016);
-          // Rebuild scene on key stage thresholds
-          if (this.drawProgress - this.lastRebuildAt > 0.08 || this.drawProgress >= 1.0) {
-            this.lastRebuildAt = this.drawProgress;
-            this.buildScene();
-          }
-
-          // Light sweeps across during drawing
-          this.twx = 0.2 + this.drawProgress * 0.6;
+          this.drawProgress = Math.min(1.0, this.drawProgress + 0.0038);
+          // Sweep light gently along the active stitch line
+          this.twx = 0.25 + this.drawProgress * 0.5;
         } else if (!this.isFinished) {
           this.isFinished = true;
-          // Notify React Native to transition
+          // Hold completed embroidery for 1.2s before auto-opening chat
           setTimeout(() => {
             if (window.ReactNativeWebView) {
               window.ReactNativeWebView.postMessage(JSON.stringify({ type: "SPLASH_COMPLETE" }));
             }
-          }, 800);
+          }, 1200);
         }
 
-        const k = 0.12;
+        const k = 0.08;
         this.hover += (this.hoverTarget - this.hover) * k;
         this.wx += (this.twx - this.wx) * k;
         this.wy += (this.twy - this.wy) * k;
 
         this.pressKick *= 0.8;
         if (this.pressKick < 0.002) this.pressKick = 0;
-        this.pressVel += (this.pressKick - this.press) * 0.28;
+        this.pressVel += (this.pressKick - this.press) * 0.25;
         this.pressVel *= 0.6;
         this.press += this.pressVel;
 

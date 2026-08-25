@@ -39,10 +39,10 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
             useNativeDriver: true,
         }).start();
 
-        // Fallback auto-transition after 3.2 seconds
+        // Fallback auto-transition after 6.0 seconds (matches relaxed slow stitching animation)
         const timer = setTimeout(() => {
             handleComplete();
-        }, 3200);
+        }, 6000);
 
         return () => clearTimeout(timer);
     }, []);
