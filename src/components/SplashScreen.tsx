@@ -1,17 +1,18 @@
 /**
  * SplashScreen - Interactive Live WebGL Stitched Embroidery
- * Rendered live with 3D satin-stitch lighting, dilated cloth silhouette,
- * merrowed border bead, and touch relighting.
+ * - Matches app's light-blue background (#F4F7FB)
+ * - Self-drawing progressive stitching animation
+ * - Automatically opens the Chat workspace upon completion
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
     View,
     Text,
     StyleSheet,
     TouchableOpacity,
     Platform,
-    ActivityIndicator,
+    Animated,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,23 +27,52 @@ interface SplashScreenProps {
 
 export const SplashScreen: React.FC<SplashScreenProps> = ({
     onFinish,
-    statusMessage = 'Initializing on-device SLM weights...',
+    statusMessage = 'Initializing offline models...',
     isReady = false,
 }) => {
-    const [canEnter, setCanEnter] = useState(false);
+    const fadeAnim = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
+        Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 600,
+            useNativeDriver: true,
+        }).start();
+
+        // Fallback auto-transition after 3.2 seconds
         const timer = setTimeout(() => {
-            setCanEnter(true);
-        }, 1200);
+            handleComplete();
+        }, 3200);
+
         return () => clearTimeout(timer);
     }, []);
+
+    const handleComplete = () => {
+        Animated.timing(fadeAnim, {
+            toValue: 0,
+            duration: 350,
+            useNativeDriver: true,
+        }).start(() => {
+            onFinish();
+        });
+    };
+
+    const handleWebViewMessage = (event: any) => {
+        try {
+            const data = JSON.parse(event.nativeEvent.data);
+            if (data.type === 'SPLASH_COMPLETE') {
+                handleComplete();
+            }
+        } catch {
+            // ignore
+        }
+    };
 
     const htmlContent = generateEmbroideryHtml();
 
     return (
-        <View style={styles.container}>
-            {/* 1. Live WebGL Embroidery Canvas */}
+        <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
+            {/* 1. Live WebGL Self-Drawing Embroidery Canvas */}
             <View style={styles.webglWrapper}>
                 {Platform.OS === 'web' ? (
                     <iframe
@@ -51,7 +81,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
                             width: '100%',
                             height: '100%',
                             border: 'none',
-                            backgroundColor: '#292133',
+                            backgroundColor: '#F4F7FB',
                         }}
                     />
                 ) : (
@@ -62,58 +92,48 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
                         scrollEnabled={false}
                         bounces={false}
                         overScrollMode="never"
+                        onMessage={handleWebViewMessage}
                     />
                 )}
             </View>
 
-            {/* 2. Floating Bottom Action Card */}
+            {/* 2. Floating Bottom Pill */}
             <View style={styles.bottomCardWrapper}>
-                <View style={styles.bottomCard}>
+                <TouchableOpacity
+                    onPress={handleComplete}
+                    style={styles.bottomCard}
+                    activeOpacity={0.85}
+                >
                     <View style={styles.brandRow}>
                         <View style={styles.brandBadge}>
                             <Ionicons name="sparkles" size={14} color={colors.primary[500]} />
                         </View>
                         <View style={{ flex: 1 }}>
                             <Text style={styles.appTitle}>WAKE UP NOLA!</Text>
-                            <Text style={styles.appSubtitle}>Offline-First Micro-Agent OS</Text>
+                            <Text style={styles.appSubtitle}>Offline Assistant • Gemma 4 Ready</Text>
                         </View>
-                        <View style={styles.engineTag}>
-                            <Text style={styles.engineText}>GEMMA 4</Text>
+                        <View style={styles.skipTag}>
+                            <Text style={styles.skipText}>Enter</Text>
+                            <Ionicons name="chevron-forward" size={12} color={colors.primary[600]} />
                         </View>
                     </View>
-
-                    {/* Status & Entry CTA */}
-                    <TouchableOpacity
-                        onPress={onFinish}
-                        style={styles.enterButton}
-                        activeOpacity={0.85}
-                    >
-                        <Text style={styles.enterBtnText}>
-                            {canEnter ? 'Enter Workspace' : statusMessage}
-                        </Text>
-                        <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
-                    </TouchableOpacity>
-
-                    <Text style={styles.tipText}>
-                        👆 Drag across the embroidered patches to relight stitches
-                    </Text>
-                </View>
+                </TouchableOpacity>
             </View>
-        </View>
+        </Animated.View>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#292133',
+        backgroundColor: colors.background.canvas,
     },
     webglWrapper: {
         flex: 1,
     },
     webview: {
         flex: 1,
-        backgroundColor: '#292133',
+        backgroundColor: colors.background.canvas,
     },
     bottomCardWrapper: {
         position: 'absolute',
@@ -122,25 +142,28 @@ const styles = StyleSheet.create({
         right: 0,
         paddingHorizontal: spacing.lg,
         paddingBottom: Platform.OS === 'ios' ? spacing['3xl'] : spacing.xl,
+        alignItems: 'center',
     },
     bottomCard: {
-        backgroundColor: 'rgba(15, 23, 42, 0.88)',
+        width: '100%',
+        maxWidth: 380,
+        backgroundColor: colors.background.surface,
         borderRadius: borderRadius['2xl'],
         borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.15)',
-        padding: spacing.lg,
-        ...shadows.float,
+        borderColor: colors.slate[200],
+        paddingVertical: spacing.md,
+        paddingHorizontal: spacing.lg,
+        ...shadows.card,
     },
     brandRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: spacing.md,
     },
     brandBadge: {
         width: 32,
         height: 32,
         borderRadius: 16,
-        backgroundColor: 'rgba(2, 132, 199, 0.18)',
+        backgroundColor: 'rgba(2, 132, 199, 0.1)',
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: spacing.sm,
@@ -148,46 +171,27 @@ const styles = StyleSheet.create({
     appTitle: {
         fontSize: typography.fontSize.sm + 1,
         fontWeight: '800',
-        color: '#FFFFFF',
-        letterSpacing: 1.2,
+        color: colors.text.primary,
+        letterSpacing: 0.8,
     },
     appSubtitle: {
         fontSize: 11,
-        color: colors.slate[400],
+        color: colors.text.muted,
         marginTop: 1,
     },
-    engineTag: {
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
-        paddingVertical: 3,
-        paddingHorizontal: spacing.sm,
-        borderRadius: borderRadius.full,
-    },
-    engineText: {
-        fontSize: 10,
-        fontWeight: '800',
-        color: '#38BDF8',
-        letterSpacing: 0.5,
-    },
-    enterButton: {
+    skipTag: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: colors.primary[500],
-        paddingVertical: spacing.md,
-        borderRadius: borderRadius.xl,
-        gap: spacing.xs,
-        ...shadows.glowBlue,
+        backgroundColor: 'rgba(2, 132, 199, 0.08)',
+        paddingVertical: 5,
+        paddingHorizontal: spacing.md,
+        borderRadius: borderRadius.full,
+        gap: 3,
     },
-    enterBtnText: {
-        fontSize: typography.fontSize.sm,
+    skipText: {
+        fontSize: 11,
         fontWeight: '700',
-        color: '#FFFFFF',
-    },
-    tipText: {
-        fontSize: 10,
-        color: 'rgba(255, 255, 255, 0.5)',
-        textAlign: 'center',
-        marginTop: spacing.sm,
+        color: colors.primary[600],
     },
 });
 

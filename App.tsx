@@ -38,7 +38,7 @@ export default function App() {
   if (showSplash) {
     return (
       <SafeAreaProvider>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <SplashScreen
           onFinish={() => setShowSplash(false)}
           statusMessage={statusMessage}
