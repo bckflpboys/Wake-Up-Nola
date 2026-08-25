@@ -1,6 +1,6 @@
 /**
- * Model Manager Screen - On-Device SLMs, Desktop LAN, and Cloud
- * Progressive disclosure with filter tags, memory meters, and back navigation
+ * Model Manager Screen - On-Device SLMs, Desktop LAN, and OpenRouter Cloud
+ * Progressive disclosure with filter tags, live connection testers, and back navigation
  */
 
 import React, { useState } from 'react';
@@ -14,6 +14,7 @@ import {
     Platform,
     Modal,
     Alert,
+    ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNola } from '../contexts/NolaContext';
@@ -37,13 +38,26 @@ export const ModelManagerScreen: React.FC<ModelManagerScreenProps> = ({
         setActiveModel,
         lanEndpoint,
         setLanEndpoint,
+        openRouterApiKey,
+        setOpenRouterApiKey,
+        testOpenRouterConnection,
+        testLanConnection,
         isOfflineMode,
         toggleOfflineMode,
     } = useNola();
 
     const [selectedTab, setSelectedTab] = useState<ModelTab>('all');
     const [isLanModalVisible, setIsLanModalVisible] = useState(false);
+    const [isOpenRouterModalVisible, setIsOpenRouterModalVisible] = useState(false);
+
     const [endpointInput, setEndpointInput] = useState(lanEndpoint);
+    const [apiKeyInput, setApiKeyInput] = useState(openRouterApiKey);
+
+    const [isTestingLan, setIsTestingLan] = useState(false);
+    const [lanTestResult, setLanTestResult] = useState<string | null>(null);
+
+    const [isTestingOpenRouter, setIsTestingOpenRouter] = useState(false);
+    const [openRouterTestResult, setOpenRouterTestResult] = useState<string | null>(null);
 
     const handleSaveLanEndpoint = () => {
         if (!endpointInput.trim()) {
@@ -53,6 +67,33 @@ export const ModelManagerScreen: React.FC<ModelManagerScreenProps> = ({
 
         setLanEndpoint(endpointInput.trim());
         setIsLanModalVisible(false);
+    };
+
+    const handleTestLan = async () => {
+        setIsTestingLan(true);
+        setLanTestResult(null);
+        try {
+            const res = await testLanConnection(endpointInput.trim());
+            setLanTestResult(res.message);
+        } finally {
+            setIsTestingLan(false);
+        }
+    };
+
+    const handleSaveOpenRouterKey = () => {
+        setOpenRouterApiKey(apiKeyInput.trim());
+        setIsOpenRouterModalVisible(false);
+    };
+
+    const handleTestOpenRouter = async () => {
+        setIsTestingOpenRouter(true);
+        setOpenRouterTestResult(null);
+        try {
+            const res = await testOpenRouterConnection(apiKeyInput.trim());
+            setOpenRouterTestResult(res.message);
+        } finally {
+            setIsTestingOpenRouter(false);
+        }
     };
 
     const filteredModels = availableModels.filter(m => {
@@ -75,7 +116,7 @@ export const ModelManagerScreen: React.FC<ModelManagerScreenProps> = ({
 
                     <View style={styles.headerTitleWrap}>
                         <Text style={styles.headerTitle}>AI Model Hub</Text>
-                        <Text style={styles.headerSubtitle}>
+                        <Text style={styles.headerSubtitle} numberOfLines={1}>
                             Active: {activeModel.name}
                         </Text>
                     </View>
@@ -105,13 +146,13 @@ export const ModelManagerScreen: React.FC<ModelManagerScreenProps> = ({
                     </TouchableOpacity>
                 </View>
 
-                {/* 2. GGUF Model Directory Banner */}
+                {/* 2. Model Directory & Credentials Banner */}
                 <View style={styles.banner}>
-                    <Ionicons name="folder-outline" size={18} color={colors.primary[600]} />
+                    <Ionicons name="hardware-chip-outline" size={20} color={colors.primary[600]} />
                     <View style={styles.bannerTextWrap}>
-                        <Text style={styles.bannerTitle}>GGUF Model Directory</Text>
+                        <Text style={styles.bannerTitle}>Multi-Backend Inference</Text>
                         <Text style={styles.bannerDesc}>
-                            Drop downloaded .gguf models into assets/models/ to load them locally.
+                            Runs small models locally on-device. Connects to desktop Ollama on WiFi or OpenRouter for frontier cloud AI.
                         </Text>
                     </View>
                 </View>
@@ -132,7 +173,7 @@ export const ModelManagerScreen: React.FC<ModelManagerScreenProps> = ({
                         style={[styles.filterPill, selectedTab === 'on-device' && styles.filterPillActive]}
                     >
                         <Text style={[styles.filterText, selectedTab === 'on-device' && styles.filterTextActive]}>
-                            On-Device Mobile
+                            On-Device SLMs
                         </Text>
                     </TouchableOpacity>
 
@@ -150,12 +191,37 @@ export const ModelManagerScreen: React.FC<ModelManagerScreenProps> = ({
                         style={[styles.filterPill, selectedTab === 'cloud' && styles.filterPillActive]}
                     >
                         <Text style={[styles.filterText, selectedTab === 'cloud' && styles.filterTextActive]}>
-                            Cloud
+                            OpenRouter
                         </Text>
                     </TouchableOpacity>
                 </View>
 
-                {/* 4. Models List */}
+                {/* 4. Quick Config Actions Row */}
+                <View style={styles.quickActionsRow}>
+                    {/* OpenRouter Config Button */}
+                    <TouchableOpacity
+                        onPress={() => setIsOpenRouterModalVisible(true)}
+                        style={styles.configPillBtn}
+                        activeOpacity={0.8}
+                    >
+                        <Ionicons name="key-outline" size={14} color={colors.primary[600]} />
+                        <Text style={styles.configPillText}>
+                            {openRouterApiKey ? 'OpenRouter Connected' : 'Configure OpenRouter Key'}
+                        </Text>
+                    </TouchableOpacity>
+
+                    {/* Desktop LAN Config Button */}
+                    <TouchableOpacity
+                        onPress={() => setIsLanModalVisible(true)}
+                        style={styles.configPillBtn}
+                        activeOpacity={0.8}
+                    >
+                        <Ionicons name="wifi-outline" size={14} color={colors.accent[600]} />
+                        <Text style={styles.configPillText}>Desktop LAN IP</Text>
+                    </TouchableOpacity>
+                </View>
+
+                {/* 5. Models List */}
                 <ScrollView
                     style={styles.scrollList}
                     contentContainerStyle={styles.scrollContent}
@@ -169,25 +235,78 @@ export const ModelManagerScreen: React.FC<ModelManagerScreenProps> = ({
                             onSelect={() => setActiveModel(model.modelKey)}
                         />
                     ))}
-
-                    {/* Configure LAN Action Box */}
-                    {selectedTab === 'all' || selectedTab === 'lan-desktop' ? (
-                        <TouchableOpacity
-                            onPress={() => setIsLanModalVisible(true)}
-                            style={styles.lanConfigCard}
-                            activeOpacity={0.8}
-                        >
-                            <Ionicons name="wifi-outline" size={20} color={colors.primary[600]} />
-                            <View style={{ flex: 1, marginLeft: 10 }}>
-                                <Text style={styles.lanConfigTitle}>Configure Desktop LAN Endpoint</Text>
-                                <Text style={styles.lanConfigSub}>Current: {lanEndpoint}</Text>
-                            </View>
-                            <Ionicons name="chevron-forward" size={16} color={colors.slate[400]} />
-                        </TouchableOpacity>
-                    ) : null}
                 </ScrollView>
 
-                {/* Configure LAN Modal */}
+                {/* Configure OpenRouter Key Modal */}
+                <Modal
+                    visible={isOpenRouterModalVisible}
+                    animationType="slide"
+                    transparent={true}
+                    onRequestClose={() => setIsOpenRouterModalVisible(false)}
+                >
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContent}>
+                            <View style={styles.modalHeader}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                    <Ionicons name="key-outline" size={20} color={colors.primary[600]} />
+                                    <Text style={styles.modalTitle}>OpenRouter API Key</Text>
+                                </View>
+                                <TouchableOpacity
+                                    onPress={() => setIsOpenRouterModalVisible(false)}
+                                    style={styles.closeBtn}
+                                >
+                                    <Ionicons name="close" size={22} color={colors.slate[600]} />
+                                </TouchableOpacity>
+                            </View>
+
+                            <ScrollView style={styles.modalBody}>
+                                <Text style={styles.modalHelp}>
+                                    OpenRouter provides access to Gemini 2.0 Flash, DeepSeek-R1, Qwen 2.5 72B, and Llama 3.3. Enter your API key from openrouter.ai/keys below:
+                                </Text>
+
+                                <Input
+                                    label="OpenRouter API Key"
+                                    placeholder="sk-or-v1-..."
+                                    value={apiKeyInput}
+                                    onChangeText={setApiKeyInput}
+                                    secureTextEntry
+                                />
+
+                                {openRouterTestResult && (
+                                    <View style={styles.testResultBox}>
+                                        <Ionicons name="information-circle-outline" size={16} color={colors.primary[600]} />
+                                        <Text style={styles.testResultText}>{openRouterTestResult}</Text>
+                                    </View>
+                                )}
+                            </ScrollView>
+
+                            <View style={styles.modalFooterRow}>
+                                <TouchableOpacity
+                                    onPress={handleTestOpenRouter}
+                                    disabled={isTestingOpenRouter}
+                                    style={styles.testBtn}
+                                    activeOpacity={0.8}
+                                >
+                                    {isTestingOpenRouter ? (
+                                        <ActivityIndicator size="small" color={colors.text.primary} />
+                                    ) : (
+                                        <Text style={styles.testBtnText}>Test Key</Text>
+                                    )}
+                                </TouchableOpacity>
+
+                                <View style={{ flex: 1 }}>
+                                    <Button
+                                        label="Save Key"
+                                        variant="primary"
+                                        onPress={handleSaveOpenRouterKey}
+                                    />
+                                </View>
+                            </View>
+                        </View>
+                    </View>
+                </Modal>
+
+                {/* Configure Desktop LAN Modal */}
                 <Modal
                     visible={isLanModalVisible}
                     animationType="slide"
@@ -197,7 +316,10 @@ export const ModelManagerScreen: React.FC<ModelManagerScreenProps> = ({
                     <View style={styles.modalOverlay}>
                         <View style={styles.modalContent}>
                             <View style={styles.modalHeader}>
-                                <Text style={styles.modalTitle}>Desktop Ollama LAN Endpoint</Text>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                    <Ionicons name="wifi-outline" size={20} color={colors.accent[600]} />
+                                    <Text style={styles.modalTitle}>Desktop Ollama LAN Endpoint</Text>
+                                </View>
                                 <TouchableOpacity
                                     onPress={() => setIsLanModalVisible(false)}
                                     style={styles.closeBtn}
@@ -217,14 +339,36 @@ export const ModelManagerScreen: React.FC<ModelManagerScreenProps> = ({
                                     value={endpointInput}
                                     onChangeText={setEndpointInput}
                                 />
+
+                                {lanTestResult && (
+                                    <View style={styles.testResultBox}>
+                                        <Ionicons name="information-circle-outline" size={16} color={colors.primary[600]} />
+                                        <Text style={styles.testResultText}>{lanTestResult}</Text>
+                                    </View>
+                                )}
                             </ScrollView>
 
-                            <View style={styles.modalFooter}>
-                                <Button
-                                    label="Connect to Desktop Ollama"
-                                    variant="primary"
-                                    onPress={handleSaveLanEndpoint}
-                                />
+                            <View style={styles.modalFooterRow}>
+                                <TouchableOpacity
+                                    onPress={handleTestLan}
+                                    disabled={isTestingLan}
+                                    style={styles.testBtn}
+                                    activeOpacity={0.8}
+                                >
+                                    {isTestingLan ? (
+                                        <ActivityIndicator size="small" color={colors.text.primary} />
+                                    ) : (
+                                        <Text style={styles.testBtnText}>Ping Endpoint</Text>
+                                    )}
+                                </TouchableOpacity>
+
+                                <View style={{ flex: 1 }}>
+                                    <Button
+                                        label="Save LAN IP"
+                                        variant="primary"
+                                        onPress={handleSaveLanEndpoint}
+                                    />
+                                </View>
                             </View>
                         </View>
                     </View>
@@ -318,14 +462,15 @@ const styles = StyleSheet.create({
         marginLeft: spacing.sm,
     },
     bannerTitle: {
-        fontSize: typography.fontSize.xs,
+        fontSize: typography.fontSize.xs + 1,
         fontWeight: '700',
         color: colors.text.primary,
     },
     bannerDesc: {
         fontSize: 11,
         color: colors.text.muted,
-        marginTop: 1,
+        marginTop: 2,
+        lineHeight: 16,
     },
     filterRow: {
         flexDirection: 'row',
@@ -354,6 +499,31 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         fontWeight: '700',
     },
+    quickActionsRow: {
+        flexDirection: 'row',
+        paddingHorizontal: spacing.lg,
+        paddingVertical: spacing.xs,
+        gap: spacing.sm,
+    },
+    configPillBtn: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: colors.background.surface,
+        paddingVertical: 7,
+        paddingHorizontal: spacing.sm,
+        borderRadius: borderRadius.lg,
+        borderWidth: 1,
+        borderColor: colors.slate[200],
+        gap: 5,
+        ...shadows.subtle,
+    },
+    configPillText: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: colors.text.primary,
+    },
     scrollList: {
         flex: 1,
     },
@@ -361,28 +531,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: spacing.lg,
         paddingTop: spacing.xs,
         paddingBottom: spacing['4xl'],
-    },
-    lanConfigCard: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: colors.background.surface,
-        borderRadius: borderRadius.lg,
-        padding: spacing.md,
-        borderWidth: 1,
-        borderColor: 'rgba(2, 132, 199, 0.2)',
-        marginTop: spacing.sm,
-        ...shadows.subtle,
-    },
-    lanConfigTitle: {
-        fontSize: typography.fontSize.sm,
-        fontWeight: '700',
-        color: colors.text.primary,
-    },
-    lanConfigSub: {
-        fontSize: 11,
-        color: colors.primary[600],
-        marginTop: 2,
-        fontFamily: 'monospace',
     },
     modalOverlay: {
         flex: 1,
@@ -393,7 +541,7 @@ const styles = StyleSheet.create({
         backgroundColor: colors.background.surface,
         borderTopLeftRadius: borderRadius['2xl'],
         borderTopRightRadius: borderRadius['2xl'],
-        maxHeight: '80%',
+        maxHeight: '85%',
         padding: spacing.lg,
     },
     modalHeader: {
@@ -422,8 +570,43 @@ const styles = StyleSheet.create({
         lineHeight: 18,
         marginBottom: spacing.md,
     },
-    modalFooter: {
+    testResultBox: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(2, 132, 199, 0.08)',
+        padding: spacing.sm + 2,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: 'rgba(2, 132, 199, 0.2)',
+        marginTop: spacing.sm,
+        gap: spacing.xs,
+    },
+    testResultText: {
+        fontSize: typography.fontSize.xs,
+        color: colors.primary[700],
+        fontWeight: '600',
+        flex: 1,
+    },
+    modalFooterRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
         marginTop: spacing.md,
+        gap: spacing.sm,
+    },
+    testBtn: {
+        paddingVertical: spacing.md,
+        paddingHorizontal: spacing.lg,
+        borderRadius: borderRadius.lg,
+        backgroundColor: colors.slate[100],
+        borderWidth: 1,
+        borderColor: colors.slate[300],
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    testBtnText: {
+        fontSize: typography.fontSize.xs + 1,
+        fontWeight: '700',
+        color: colors.text.primary,
     },
 });
 

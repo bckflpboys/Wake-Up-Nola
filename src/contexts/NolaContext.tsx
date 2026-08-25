@@ -1,12 +1,12 @@
 /**
  * Wake Up Nola - Global Assistant Context
+ * Deep integration with OpenRouter Cloud, Desktop LAN Ollama, and On-Device SLMs
  */
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { aiEngine, AIModel, AVAILABLE_MODELS, InferenceStep } from '../services/aiEngine';
 import { taskDecomposer, DecomposedTask } from '../services/taskDecomposer';
 import { briefingService, DailyBriefing } from '../services/briefingService';
-import { expoDb } from '../db/client';
 
 export interface ChatMessage {
     id: string;
@@ -28,9 +28,13 @@ interface NolaContextType {
     dailyBriefing: DailyBriefing | null;
     messages: ChatMessage[];
     lanEndpoint: string;
+    openRouterApiKey: string;
     isOfflineMode: boolean;
     setActiveModel: (modelKey: string) => void;
     setLanEndpoint: (url: string) => void;
+    setOpenRouterApiKey: (key: string) => void;
+    testOpenRouterConnection: (key?: string) => Promise<{ success: boolean; message: string }>;
+    testLanConnection: (url?: string) => Promise<{ success: boolean; message: string }>;
     toggleOfflineMode: () => void;
     toggleStandby: () => void;
     startVoiceTrigger: () => void;
@@ -51,13 +55,14 @@ export const NolaProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [activeSteps, setActiveSteps] = useState<InferenceStep[]>([]);
     const [dailyBriefing, setDailyBriefing] = useState<DailyBriefing | null>(null);
     const [lanEndpoint, setLanEndpointState] = useState<string>('http://192.168.1.100:11434');
+    const [openRouterApiKey, setOpenRouterApiKeyState] = useState<string>('');
     const [isOfflineMode, setIsOfflineMode] = useState<boolean>(true);
 
     const [messages, setMessages] = useState<ChatMessage[]>([
         {
             id: 'welcome-1',
             role: 'assistant',
-            content: '👋 **Wake Up Nola is online & ready.**\n\nI am your offline-first personal AI assistant running **Gemma 4 E2B** on-device.\n\n[AUDIO: Daily Briefing Audio Clip]\n\n[FILE: project_alpha_notes.md]\n\nHere is your active on-device inference setup:\n```typescript\nimport { aiEngine } from "wake-up-nola";\n\n// Fast sub-1.5GB mobile SLM\nconst response = await aiEngine.generate({\n  model: "gemma-4-e2b",\n  context: "offline_vault",\n  temperature: 0.7\n});\n```\n\nAsk me anything or tap any quick action below to begin!',
+            content: '👋 **Wake Up Nola is online & ready.**\n\nI am your offline-first personal AI assistant running **Gemma 4 E2B** on-device with OpenRouter cloud capabilities.\n\n[AUDIO: Daily Briefing Audio Clip]\n\n[FILE: project_alpha_notes.md]\n\nHere is your active on-device inference setup:\n```typescript\nimport { aiEngine } from "wake-up-nola";\n\n// Fast sub-1.5GB mobile SLM or OpenRouter Cloud\nconst response = await aiEngine.generate({\n  model: "gemma-4-e2b",\n  context: "offline_vault",\n  temperature: 0.7\n});\n```\n\nAsk me anything or tap any quick action below to begin!',
             modelUsed: 'Google Gemma 4 (E2B)',
             latencyMs: 380,
             steps: [
@@ -83,6 +88,24 @@ export const NolaProvider: React.FC<{ children: React.ReactNode }> = ({ children
         aiEngine.setActiveModel(modelKey);
         const updated = aiEngine.getActiveModel();
         setActiveModelState({ ...updated });
+    };
+
+    const setLanEndpoint = (url: string) => {
+        aiEngine.setDesktopLanUrl(url);
+        setLanEndpointState(url);
+    };
+
+    const setOpenRouterApiKey = (key: string) => {
+        aiEngine.setOpenRouterApiKey(key);
+        setOpenRouterApiKeyState(key);
+    };
+
+    const testOpenRouterConnection = async (key?: string) => {
+        return await aiEngine.testOpenRouterConnection(key);
+    };
+
+    const testLanConnection = async (url?: string) => {
+        return await aiEngine.testLanConnection(url);
     };
 
     const toggleStandby = () => {
@@ -150,10 +173,6 @@ export const NolaProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     };
 
-    const setLanEndpoint = (url: string) => {
-        setLanEndpointState(url);
-    };
-
     const toggleOfflineMode = () => {
         setIsOfflineMode(prev => !prev);
     };
@@ -174,9 +193,13 @@ export const NolaProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 dailyBriefing,
                 messages,
                 lanEndpoint,
+                openRouterApiKey,
                 isOfflineMode,
                 setActiveModel,
                 setLanEndpoint,
+                setOpenRouterApiKey,
+                testOpenRouterConnection,
+                testLanConnection,
                 toggleOfflineMode,
                 toggleStandby,
                 startVoiceTrigger,
@@ -198,3 +221,5 @@ export const useNola = () => {
     }
     return context;
 };
+
+export default NolaContext;
