@@ -1,0 +1,23 @@
+[
+  {
+    "name": "Sarah Jenkins",
+    "role": "Lead Engineer",
+    "email": "sarah.j@techinnovate.io",
+    "project": "Project Alpha",
+    "notes": "Prefers async messages. Working on local inference kernels."
+  },
+  {
+    "name": "Marcus Vance",
+    "role": "Product Designer",
+    "email": "marcus.v@designcraft.co",
+    "project": "Wake Up Nola UI",
+    "notes": "Reviewed the Standby glowing pulse ring."
+  },
+  {
+    "name": "Dr. Elena Rostova",
+    "role": "ML Research Advisor",
+    "email": "elena.r@aimodel-labs.org",
+    "project": "SLM Task Decomposition",
+    "notes": "Suggested fine-tuned Gemma 2B for structured JSON output."
+  }
+]

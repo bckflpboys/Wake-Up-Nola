@@ -1,0 +1,66 @@
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Expo & Build
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+.turbo/
+
+# Large AI Model Binaries (Prevents GitHub 100MB limit rejection)
+*.gguf
+*.bin
+*.onnx
+*.task
+*.tflite
+*.safetensors
+*.pt
+*.pth
+!assets/models/README.md
+
+# SQLite & Local Databases
+*.db
+*.sqlite
+*.sqlite3
+wake_up_nola.db
+ticket_africa.db
+
+# Environment & Secrets
+.env
+.env*.local
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Native Builds & Keys
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.pem
+/ios
+/android
+
+# Metro & Logs
+.metro-health-check*
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# IDEs & System
+.DS_Store
+.idea/
+.vscode/
+Thumbs.db
+
+# TypeScript
+*.tsbuildinfo

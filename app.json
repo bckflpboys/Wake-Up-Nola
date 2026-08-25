@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "Wake Up Nola",
+    "slug": "wake-up-nola",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "wakeupnola",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "backgroundColor": "#090D16",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.wakeupnola.assistant",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIViewControllerBasedStatusBarAppearance": false
+      }
+    },
+    "android": {
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "package": "com.wakeupnola.assistant",
+      "usesCleartextTraffic": true
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-web-browser"
+    ]
+  }
+}
