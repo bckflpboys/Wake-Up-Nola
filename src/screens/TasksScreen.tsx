@@ -1,6 +1,6 @@
 /**
- * Tasks Screen - Agenda, Missing Action Verification & Decomposed Steps
- * Surfaces "What am I missing?" items and sequential task breakdowns
+ * Tasks Screen - Agenda & Missing Action Watchdog
+ * Progressive disclosure with filter tags, clean cards, and back navigation
  */
 
 import React, { useState } from 'react';
@@ -25,10 +25,16 @@ import { TaskAndSchedule } from '../db/schema';
 import { colors, spacing, typography, borderRadius, shadows } from '../theme';
 
 interface TasksScreenProps {
+    onNavigateBack?: () => void;
     onAskNolaAboutSchedule?: (prompt: string) => void;
 }
 
-export const TasksScreen: React.FC<TasksScreenProps> = ({ onAskNolaAboutSchedule }) => {
+type TaskFilter = 'all' | 'pending' | 'missing' | 'completed';
+
+export const TasksScreen: React.FC<TasksScreenProps> = ({
+    onNavigateBack,
+    onAskNolaAboutSchedule,
+}) => {
     const {
         tasks,
         missingAlerts,
@@ -37,6 +43,7 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({ onAskNolaAboutSchedule
         refreshTasks,
     } = useTasks();
 
+    const [selectedFilter, setSelectedFilter] = useState<TaskFilter>('all');
     const [isAddModalVisible, setIsAddModalVisible] = useState(false);
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
@@ -75,32 +82,49 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({ onAskNolaAboutSchedule
         }
     };
 
+    const filteredTasks = tasks.filter(task => {
+        if (selectedFilter === 'all') return true;
+        if (selectedFilter === 'pending') return task.status === 'pending';
+        if (selectedFilter === 'missing') return task.isMissingCheck || task.category === 'missing_alert';
+        if (selectedFilter === 'completed') return task.status === 'completed';
+        return true;
+    });
+
     return (
         <SafeAreaView style={styles.safeArea}>
             <View style={styles.container}>
-                {/* Header */}
+                {/* 1. Header with Back Button */}
                 <View style={styles.header}>
-                    <View>
+                    <TouchableOpacity
+                        onPress={onNavigateBack}
+                        style={styles.backBtn}
+                        activeOpacity={0.7}
+                    >
+                        <Ionicons name="chevron-back" size={18} color={colors.text.primary} />
+                    </TouchableOpacity>
+
+                    <View style={styles.headerTitleWrap}>
                         <Text style={styles.headerTitle}>Daily Agenda</Text>
                         <Text style={styles.headerSubtitle}>
-                            {pendingTasks.length} pending • {missingAlerts.length} missing action checks
+                            {pendingTasks.length} pending • {missingAlerts.length} flagged checks
                         </Text>
                     </View>
+
                     <TouchableOpacity
                         onPress={() => setIsAddModalVisible(true)}
                         style={styles.addBtn}
                         activeOpacity={0.8}
                     >
-                        <Ionicons name="add" size={18} color="#FFFFFF" />
+                        <Ionicons name="add" size={16} color="#FFFFFF" />
                         <Text style={styles.addBtnText}>New Task</Text>
                     </TouchableOpacity>
                 </View>
 
-                {/* Missing Checks Quick Banner */}
+                {/* 2. Missing Checks Banner */}
                 <View style={styles.missingBanner}>
                     <View style={styles.missingHeader}>
                         <View style={styles.alertIconBox}>
-                            <Ionicons name="alert-circle" size={20} color={colors.standby[600]} />
+                            <Ionicons name="alert-circle" size={18} color={colors.standby[600]} />
                         </View>
                         <View style={styles.alertTextWrap}>
                             <Text style={styles.alertTitle}>"What am I missing?" Watchdog</Text>
@@ -113,51 +137,67 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({ onAskNolaAboutSchedule
                             style={styles.scanButton}
                             activeOpacity={0.8}
                         >
-                            <Ionicons name="sparkles" size={14} color="#FFFFFF" />
+                            <Ionicons name="sparkles" size={13} color="#FFFFFF" />
                             <Text style={styles.scanBtnText}>Verify</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
 
-                {/* Tasks List */}
+                {/* 3. Filter Tags */}
+                <View style={styles.filterRow}>
+                    <TouchableOpacity
+                        onPress={() => setSelectedFilter('all')}
+                        style={[styles.filterPill, selectedFilter === 'all' && styles.filterPillActive]}
+                    >
+                        <Text style={[styles.filterText, selectedFilter === 'all' && styles.filterTextActive]}>
+                            All ({tasks.length})
+                        </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        onPress={() => setSelectedFilter('pending')}
+                        style={[styles.filterPill, selectedFilter === 'pending' && styles.filterPillActive]}
+                    >
+                        <Text style={[styles.filterText, selectedFilter === 'pending' && styles.filterTextActive]}>
+                            Pending ({pendingTasks.length})
+                        </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        onPress={() => setSelectedFilter('missing')}
+                        style={[styles.filterPill, selectedFilter === 'missing' && styles.filterPillActive]}
+                    >
+                        <Text style={[styles.filterText, selectedFilter === 'missing' && styles.filterTextActive]}>
+                            Missing Checks ({missingAlerts.length})
+                        </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        onPress={() => setSelectedFilter('completed')}
+                        style={[styles.filterPill, selectedFilter === 'completed' && styles.filterPillActive]}
+                    >
+                        <Text style={[styles.filterText, selectedFilter === 'completed' && styles.filterTextActive]}>
+                            Done ({completedTasks.length})
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+
+                {/* 4. Tasks List */}
                 <ScrollView
                     style={styles.scrollList}
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={false}
                 >
-                    {/* Flagged Missing Checks Section */}
-                    {missingAlerts.length > 0 && (
-                        <View style={styles.sectionWrap}>
-                            <Text style={styles.sectionHeader}>⚠️ Flagged Follow-Ups</Text>
-                            {missingAlerts.map(task => (
-                                <TaskItem key={task.id} task={task} onToggle={() => toggleTaskStatus(task.id)} />
-                            ))}
+                    {filteredTasks.length === 0 ? (
+                        <View style={styles.emptyCard}>
+                            <Ionicons name="checkmark-done-circle-outline" size={38} color={colors.success.main} />
+                            <Text style={styles.emptyTitle}>All caught up!</Text>
+                            <Text style={styles.emptyDesc}>No tasks found in this section.</Text>
                         </View>
-                    )}
-
-                    {/* Pending Agenda Section */}
-                    <View style={styles.sectionWrap}>
-                        <Text style={styles.sectionHeader}>📌 Scheduled Agenda ({pendingTasks.length})</Text>
-                        {pendingTasks.length === 0 ? (
-                            <View style={styles.emptyCard}>
-                                <Ionicons name="checkmark-done-circle-outline" size={36} color={colors.success.main} />
-                                <Text style={styles.emptyText}>All caught up! No pending tasks.</Text>
-                            </View>
-                        ) : (
-                            pendingTasks.map(task => (
-                                <TaskItem key={task.id} task={task} onToggle={() => toggleTaskStatus(task.id)} />
-                            ))
-                        )}
-                    </View>
-
-                    {/* Completed Section */}
-                    {completedTasks.length > 0 && (
-                        <View style={styles.sectionWrap}>
-                            <Text style={styles.sectionHeader}>✓ Completed ({completedTasks.length})</Text>
-                            {completedTasks.map(task => (
-                                <TaskItem key={task.id} task={task} onToggle={() => toggleTaskStatus(task.id)} />
-                            ))}
-                        </View>
+                    ) : (
+                        filteredTasks.map(task => (
+                            <TaskItem key={task.id} task={task} onToggle={() => toggleTaskStatus(task.id)} />
+                        ))
                     )}
                 </ScrollView>
 
@@ -176,7 +216,7 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({ onAskNolaAboutSchedule
                                     onPress={() => setIsAddModalVisible(false)}
                                     style={styles.closeBtn}
                                 >
-                                    <Ionicons name="close" size={24} color={colors.slate[600]} />
+                                    <Ionicons name="close" size={22} color={colors.slate[600]} />
                                 </TouchableOpacity>
                             </View>
 
@@ -244,7 +284,7 @@ const TaskItem: React.FC<{ task: TaskAndSchedule; onToggle: () => void }> = ({ t
         <Card variant="default" style={styles.taskCard}>
             <TouchableOpacity onPress={onToggle} style={styles.taskRow} activeOpacity={0.7}>
                 <View style={[styles.checkbox, isCompleted && styles.checkboxChecked]}>
-                    {isCompleted && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+                    {isCompleted && <Ionicons name="checkmark" size={13} color="#FFFFFF" />}
                 </View>
 
                 <View style={styles.taskInfo}>
@@ -283,8 +323,8 @@ const TaskItem: React.FC<{ task: TaskAndSchedule; onToggle: () => void }> = ({ t
 const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
-        backgroundColor: colors.background.primary,
-        paddingTop: Platform.OS === 'android' ? 30 : 0,
+        backgroundColor: colors.background.canvas,
+        paddingTop: Platform.OS === 'android' ? 32 : 0,
     },
     container: {
         flex: 1,
@@ -294,18 +334,33 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingHorizontal: spacing.lg,
-        paddingVertical: spacing.md,
+        paddingVertical: spacing.xs + 2,
+    },
+    backBtn: {
+        width: 38,
+        height: 38,
+        borderRadius: 19,
+        backgroundColor: colors.background.surface,
+        borderWidth: 1,
+        borderColor: colors.slate[200],
+        alignItems: 'center',
+        justifyContent: 'center',
+        ...shadows.subtle,
+    },
+    headerTitleWrap: {
+        flex: 1,
+        marginLeft: spacing.md,
     },
     headerTitle: {
-        fontSize: typography.fontSize['2xl'],
+        fontSize: typography.fontSize.lg,
         fontWeight: '800',
         color: colors.text.primary,
-        letterSpacing: -0.5,
+        letterSpacing: -0.4,
     },
     headerSubtitle: {
         fontSize: typography.fontSize.xs,
         color: colors.text.muted,
-        marginTop: 2,
+        marginTop: 1,
     },
     addBtn: {
         flexDirection: 'row',
@@ -314,7 +369,7 @@ const styles = StyleSheet.create({
         paddingVertical: 7,
         paddingHorizontal: spacing.md,
         borderRadius: borderRadius.full,
-        ...shadows.sm,
+        ...shadows.subtle,
     },
     addBtnText: {
         fontSize: typography.fontSize.xs,
@@ -324,8 +379,8 @@ const styles = StyleSheet.create({
     },
     missingBanner: {
         marginHorizontal: spacing.lg,
-        marginBottom: spacing.sm,
-        backgroundColor: '#FFFFFF',
+        marginVertical: spacing.xs + 2,
+        backgroundColor: colors.background.surface,
         borderRadius: borderRadius.xl,
         padding: spacing.md,
         borderWidth: 1,
@@ -337,9 +392,9 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     alertIconBox: {
-        width: 38,
-        height: 38,
-        borderRadius: 19,
+        width: 36,
+        height: 36,
+        borderRadius: 18,
         backgroundColor: 'rgba(217, 119, 6, 0.1)',
         alignItems: 'center',
         justifyContent: 'center',
@@ -362,7 +417,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: colors.standby[600],
-        paddingVertical: 6,
+        paddingVertical: 5,
         paddingHorizontal: spacing.md,
         borderRadius: borderRadius.full,
     },
@@ -372,43 +427,68 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         marginLeft: 4,
     },
+    filterRow: {
+        flexDirection: 'row',
+        paddingHorizontal: spacing.lg,
+        paddingVertical: spacing.xs,
+        gap: 6,
+    },
+    filterPill: {
+        paddingVertical: 5,
+        paddingHorizontal: spacing.sm + 2,
+        borderRadius: borderRadius.full,
+        backgroundColor: colors.background.surface,
+        borderWidth: 1,
+        borderColor: colors.slate[200],
+    },
+    filterPillActive: {
+        backgroundColor: colors.text.primary,
+        borderColor: colors.text.primary,
+    },
+    filterText: {
+        fontSize: 11,
+        fontWeight: '600',
+        color: colors.text.secondary,
+    },
+    filterTextActive: {
+        color: '#FFFFFF',
+        fontWeight: '700',
+    },
     scrollList: {
         flex: 1,
     },
     scrollContent: {
         paddingHorizontal: spacing.lg,
-        paddingBottom: spacing['3xl'],
-    },
-    sectionWrap: {
-        marginBottom: spacing.lg,
-    },
-    sectionHeader: {
-        fontSize: typography.fontSize.xs,
-        fontWeight: '700',
-        color: colors.text.muted,
-        letterSpacing: 0.8,
-        textTransform: 'uppercase',
-        marginBottom: spacing.sm,
+        paddingTop: spacing.xs,
+        paddingBottom: spacing['4xl'],
     },
     emptyCard: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: borderRadius.lg,
+        backgroundColor: colors.background.surface,
+        borderRadius: borderRadius.xl,
         padding: spacing.xl,
         alignItems: 'center',
         justifyContent: 'center',
         borderWidth: 1,
-        borderColor: 'rgba(15, 23, 42, 0.06)',
+        borderColor: colors.slate[200],
+        marginTop: spacing.lg,
+        ...shadows.subtle,
     },
-    emptyText: {
-        fontSize: typography.fontSize.sm,
-        color: colors.text.secondary,
+    emptyTitle: {
+        fontSize: typography.fontSize.sm + 1,
+        fontWeight: '700',
+        color: colors.text.primary,
         marginTop: spacing.xs,
+    },
+    emptyDesc: {
+        fontSize: typography.fontSize.xs,
+        color: colors.text.muted,
+        marginTop: 2,
     },
     taskCard: {
         marginBottom: spacing.xs + 4,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.background.surface,
         borderWidth: 1,
-        borderColor: 'rgba(15, 23, 42, 0.08)',
+        borderColor: colors.slate[200],
         ...shadows.subtle,
     },
     taskRow: {
@@ -416,10 +496,10 @@ const styles = StyleSheet.create({
         alignItems: 'flex-start',
     },
     checkbox: {
-        width: 22,
-        height: 22,
+        width: 20,
+        height: 20,
         borderRadius: 6,
-        borderWidth: 2,
+        borderWidth: 1.5,
         borderColor: colors.slate[300],
         alignItems: 'center',
         justifyContent: 'center',
@@ -476,7 +556,7 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-end',
     },
     modalContent: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.background.surface,
         borderTopLeftRadius: borderRadius['2xl'],
         borderTopRightRadius: borderRadius['2xl'],
         maxHeight: '85%',
@@ -492,8 +572,8 @@ const styles = StyleSheet.create({
         borderBottomColor: colors.slate[100],
     },
     modalTitle: {
-        fontSize: typography.fontSize.lg,
-        fontWeight: '700',
+        fontSize: typography.fontSize.md,
+        fontWeight: '800',
         color: colors.text.primary,
     },
     closeBtn: {

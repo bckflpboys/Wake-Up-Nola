@@ -1,10 +1,10 @@
 /**
  * Main Navigator - Wake Up Nola
- * 5-tab based navigation: Chat (Main Space), Connectors, Vault, Tasks, Models
+ * Robust back-stack history & hardware BackHandler support
  */
 
-import React, { useState } from 'react';
-import { View, StyleSheet } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, StyleSheet, BackHandler, Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 
 import { BottomNav, TabName } from '../components/molecules/BottomNav';
@@ -17,11 +17,43 @@ import { useNola } from '../contexts/NolaContext';
 import { colors } from '../theme';
 
 export const MainNavigator: React.FC = () => {
-    const [activeTab, setActiveTab] = useState<TabName>('chat');
+    const [history, setHistory] = useState<TabName[]>(['chat']);
     const { sendMessage } = useNola();
 
+    const activeTab = history[history.length - 1] || 'chat';
+
+    const navigateTo = useCallback((tab: TabName) => {
+        setHistory(prev => {
+            if (prev[prev.length - 1] === tab) return prev;
+            return [...prev, tab];
+        });
+    }, []);
+
+    const navigateBack = useCallback(() => {
+        setHistory(prev => {
+            if (prev.length > 1) {
+                return prev.slice(0, -1);
+            }
+            return prev;
+        });
+    }, []);
+
+    // Handle Android hardware back button and swipe-back behavior
+    useEffect(() => {
+        const onBackPress = () => {
+            if (history.length > 1) {
+                navigateBack();
+                return true; // Prevent default app exit
+            }
+            return false; // Exit app if already at root
+        };
+
+        const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+        return () => subscription.remove();
+    }, [history, navigateBack]);
+
     const handleAskNolaFromVault = async (prompt: string) => {
-        setActiveTab('chat');
+        navigateTo('chat');
         try {
             await sendMessage(prompt);
         } catch (e) {
@@ -32,16 +64,39 @@ export const MainNavigator: React.FC = () => {
     const renderScreen = () => {
         switch (activeTab) {
             case 'connectors':
-                return <ConnectorsScreen onNavigateChat={() => setActiveTab('chat')} />;
+                return (
+                    <ConnectorsScreen
+                        onNavigateBack={navigateBack}
+                        onNavigateChat={() => navigateTo('chat')}
+                    />
+                );
             case 'vault':
-                return <VaultScreen onAskNolaAboutDoc={handleAskNolaFromVault} />;
+                return (
+                    <VaultScreen
+                        onNavigateBack={navigateBack}
+                        onAskNolaAboutDoc={handleAskNolaFromVault}
+                    />
+                );
             case 'tasks':
-                return <TasksScreen onAskNolaAboutSchedule={handleAskNolaFromVault} />;
+                return (
+                    <TasksScreen
+                        onNavigateBack={navigateBack}
+                        onAskNolaAboutSchedule={handleAskNolaFromVault}
+                    />
+                );
             case 'models':
-                return <ModelManagerScreen />;
+                return (
+                    <ModelManagerScreen
+                        onNavigateBack={navigateBack}
+                    />
+                );
             case 'chat':
             default:
-                return <ChatScreen onNavigateTab={(tab) => setActiveTab(tab)} />;
+                return (
+                    <ChatScreen
+                        onNavigateTab={(tab) => navigateTo(tab)}
+                    />
+                );
         }
     };
 
@@ -53,7 +108,10 @@ export const MainNavigator: React.FC = () => {
                 {renderScreen()}
             </View>
 
-            <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
+            <BottomNav
+                activeTab={activeTab}
+                onTabChange={navigateTo}
+            />
         </View>
     );
 };
@@ -61,7 +119,7 @@ export const MainNavigator: React.FC = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background.primary,
+        backgroundColor: colors.background.canvas,
     },
     screenContainer: {
         flex: 1,

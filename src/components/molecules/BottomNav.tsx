@@ -1,12 +1,12 @@
 /**
  * BottomNav - Molecule
- * Modern, crisp 5-tab navigation bar for Wake Up Nola
+ * Minimalist, modern navigation bar with active cyan pill indicators
  */
 
 import React from 'react';
 import { View, TouchableOpacity, Text, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, typography, spacing, shadows } from '../../theme';
+import { colors, typography, spacing, borderRadius, shadows } from '../../theme';
 
 export type TabName = 'chat' | 'connectors' | 'vault' | 'tasks' | 'models';
 
@@ -58,51 +58,59 @@ export const BottomNav: React.FC<BottomNavProps> = ({
     ];
 
     return (
-        <View style={styles.container}>
-            {tabs.map(tab => {
-                const isActive = activeTab === tab.id;
+        <View style={styles.containerWrapper}>
+            <View style={styles.container}>
+                {tabs.map(tab => {
+                    const isActive = activeTab === tab.id;
 
-                return (
-                    <TouchableOpacity
-                        key={tab.id}
-                        onPress={() => onTabChange(tab.id)}
-                        style={styles.tabButton}
-                        activeOpacity={0.7}
-                    >
-                        <View style={[styles.iconContainer, isActive && styles.activeIconContainer]}>
-                            <Ionicons
-                                name={isActive ? tab.activeIcon : tab.icon}
-                                size={20}
-                                color={isActive ? colors.primary[600] : colors.slate[400]}
-                            />
-                        </View>
-                        <Text
-                            style={[
-                                styles.tabLabel,
-                                isActive && styles.activeTabLabel,
-                            ]}
+                    return (
+                        <TouchableOpacity
+                            key={tab.id}
+                            onPress={() => onTabChange(tab.id)}
+                            style={styles.tabButton}
+                            activeOpacity={0.7}
                         >
-                            {tab.label}
-                        </Text>
-                    </TouchableOpacity>
-                );
-            })}
+                            <View style={[styles.iconBox, isActive && styles.iconBoxActive]}>
+                                <Ionicons
+                                    name={isActive ? tab.activeIcon : tab.icon}
+                                    size={18}
+                                    color={isActive ? colors.primary[600] : colors.slate[400]}
+                                />
+                            </View>
+                            <Text
+                                style={[
+                                    styles.tabLabel,
+                                    isActive && styles.activeTabLabel,
+                                ]}
+                            >
+                                {tab.label}
+                            </Text>
+                        </TouchableOpacity>
+                    );
+                })}
+            </View>
         </View>
     );
 };
 
 const styles = StyleSheet.create({
+    containerWrapper: {
+        backgroundColor: colors.background.canvas,
+        paddingHorizontal: spacing.md,
+        paddingBottom: Platform.OS === 'ios' ? spacing.lg : spacing.xs + 4,
+        paddingTop: 2,
+    },
     container: {
         flexDirection: 'row',
-        backgroundColor: '#FFFFFF',
-        borderTopWidth: 1,
-        borderTopColor: 'rgba(15, 23, 42, 0.08)',
-        paddingVertical: spacing.xs,
-        paddingBottom: Platform.OS === 'ios' ? spacing.lg : spacing.xs + 2,
-        paddingHorizontal: spacing.sm,
+        backgroundColor: colors.background.surface,
+        borderRadius: borderRadius['2xl'],
+        borderWidth: 1,
+        borderColor: colors.slate[200],
+        paddingVertical: 6,
+        paddingHorizontal: spacing.xs,
         justifyContent: 'space-around',
         alignItems: 'center',
-        ...shadows.subtle,
+        ...shadows.card,
     },
     tabButton: {
         alignItems: 'center',
@@ -110,18 +118,21 @@ const styles = StyleSheet.create({
         flex: 1,
         paddingVertical: 2,
     },
-    iconContainer: {
+    iconBox: {
         width: 32,
         height: 26,
         alignItems: 'center',
         justifyContent: 'center',
+        borderRadius: borderRadius.md,
     },
-    activeIconContainer: {},
+    iconBoxActive: {
+        backgroundColor: 'rgba(2, 132, 199, 0.08)',
+    },
     tabLabel: {
         fontSize: 10,
         fontWeight: '600',
         color: colors.slate[400],
-        marginTop: 1,
+        marginTop: 2,
     },
     activeTabLabel: {
         color: colors.primary[600],

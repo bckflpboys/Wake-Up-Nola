@@ -1,51 +1,49 @@
 /**
  * Wake Up Nola - Design System & Theme
- * Modern, airy light-blueish aesthetic with crisp white cards, deep navy text,
- * and vibrant dark-colorful accent pills (inspired by VoxCode UI).
+ * Premium, airy, modern light-canvas aesthetic.
+ * Pixel-perfect borders, subtle micro-shadows, and deliberate hierarchy.
  */
 
 export const colors = {
-    // Primary Backgrounds (Airy White-Light Blueish)
+    // Primary Background Canvas
     background: {
-        primary: '#EEF4FA', // Soft Light-Blue Background
-        secondary: '#E2ECF7', // Slightly Deeper Surface
-        tertiary: '#D7E4F2', // Elevated Borders
-        card: '#FFFFFF', // Crisp Clean White Card
-        cardSubtle: 'rgba(255, 255, 255, 0.75)',
-        cardHover: '#F8FAFC',
-        overlay: 'rgba(15, 23, 42, 0.45)',
+        canvas: '#F4F7FB',       // Crisp, airy soft-blue background
+        primary: '#F4F7FB',      // Alias
+        surface: '#FFFFFF',      // Pure white card surfaces
+        card: '#FFFFFF',         // Alias
+        surfaceSubtle: '#F8FAFC',// Secondary card / row fill
+        surfaceElevated: '#FFFFFF',
+        overlay: 'rgba(15, 23, 42, 0.4)',
         input: '#FFFFFF',
     },
 
-    // Brand Colors (Cyber Cyan & Electric Blue)
+    // Brand Colors
     primary: {
         50: '#F0F7FF',
         100: '#E0EFFF',
         200: '#BAE0FF',
         300: '#7CC4FA',
         400: '#38A5F4',
-        500: '#0284C7', // Electric Deep Cyan
+        500: '#0284C7', // Electric Ocean Cyan
         600: '#0369A1',
         700: '#075985',
         800: '#0C4A6E',
         900: '#082F49',
     },
 
-    // Accent Colors
+    // Accent Teal & Emerald
     accent: {
         50: '#F0FDFA',
         100: '#CCFBF1',
         200: '#99F6E4',
         300: '#5EEAD4',
         400: '#2DD4BF',
-        500: '#0D9488', // Vibrant Teal
+        500: '#0D9488', // Vibrant Mint Teal
         600: '#0F766E',
         700: '#115E59',
-        800: '#134E4A',
-        900: '#042F2E',
     },
 
-    // Standby & Solar Glow
+    // Standby Amber Glow
     standby: {
         50: '#FFFBEB',
         100: '#FEF3C7',
@@ -58,22 +56,21 @@ export const colors = {
         800: '#78350F',
     },
 
-    // Text & Neutral Hierarchy (Deep Navy / Slate)
+    // Typography & Slate Colors
     text: {
-        primary: '#090D16', // Bold Deep Navy
-        secondary: '#334155', // Slate Grey
-        muted: '#64748B', // Soft Muted Blue-Grey
-        light: '#94A3B8',
+        primary: '#0F172A',   // Deep Obsidian Navy
+        secondary: '#475569', // Balanced Slate
+        muted: '#64748B',     // Soft Description Grey
+        subtle: '#94A3B8',    // Micro hints & timestamps
         inverse: '#FFFFFF',
         accent: '#0284C7',
         teal: '#0D9488',
-        violet: '#6D28D9',
     },
 
     slate: {
         50: '#F8FAFC',
         100: '#F1F5F9',
-        200: '#E2E8F0',
+        200: '#E2E8F0', // Main Card & Divider Border
         300: '#CBD5E1',
         400: '#94A3B8',
         500: '#64748B',
@@ -84,23 +81,17 @@ export const colors = {
         950: '#020617',
     },
 
-    // Vibrant Colorful Accent Pills (For quick action tags)
-    tags: {
-        emeraldBg: '#064E3B',
-        emeraldText: '#FFFFFF',
-        navyBg: '#0C4A6E',
-        navyText: '#FFFFFF',
-        tealBg: '#0F766E',
-        tealText: '#FFFFFF',
-        amberBg: '#78350F',
-        amberText: '#FFFFFF',
-        violetBg: '#4C1D95',
-        violetText: '#FFFFFF',
-        cyanBg: '#00838F',
-        cyanText: '#FFFFFF',
+    // Colorful Action Chips (Dark background with vibrant white text)
+    chips: {
+        emerald: { bg: '#064E3B', text: '#FFFFFF', border: '#047857' },
+        navy: { bg: '#0C4A6E', text: '#FFFFFF', border: '#0369A1' },
+        teal: { bg: '#0F766E', text: '#FFFFFF', border: '#0D9488' },
+        amber: { bg: '#78350F', text: '#FFFFFF', border: '#B45309' },
+        violet: { bg: '#4C1D95', text: '#FFFFFF', border: '#6D28D9' },
+        cyan: { bg: '#006064', text: '#FFFFFF', border: '#00838F' },
     },
 
-    // Semantic Colors
+    // Semantics
     success: {
         light: '#ECFDF5',
         main: '#059669',
@@ -120,13 +111,11 @@ export const colors = {
         border: '#FDE68A',
     },
     info: {
-        light: '#EFF6FF',
+        light: '#F0F7FF',
         main: '#0284C7',
         dark: '#0369A1',
         border: '#BAE6FD',
     },
-
-    // Gradients
     gradients: {
         primary: ['#0284C7', '#0369A1'],
         cyanGlow: ['#06B6D4', '#0284C7'],
@@ -160,31 +149,33 @@ export const typography = {
         bold: 'System',
     },
     fontSize: {
+        '2xs': 10,
         xs: 12,
-        sm: 14,
-        base: 16,
+        sm: 13.5,
+        base: 15,
+        md: 16,
         lg: 18,
         xl: 20,
         '2xl': 24,
-        '3xl': 30,
-        '4xl': 36,
-        '5xl': 48,
+        '3xl': 28,
+        '4xl': 34,
     },
-    lineHeight: {
-        tight: 1.2,
-        normal: 1.5,
-        relaxed: 1.75,
+    letterSpacing: {
+        tight: -0.4,
+        normal: 0,
+        wide: 0.5,
+        wider: 1.0,
     },
 };
 
 export const borderRadius = {
     none: 0,
-    sm: 6,
-    md: 10,
-    lg: 14,
-    xl: 18,
-    '2xl': 22,
-    '3xl': 28,
+    sm: 8,
+    md: 12,
+    lg: 16,
+    xl: 20,
+    '2xl': 26,
+    '3xl': 32,
     full: 9999,
 };
 
@@ -197,46 +188,60 @@ export const shadows = {
         elevation: 0,
     },
     subtle: {
-        shadowColor: '#64748B',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 6,
-        elevation: 2,
+        shadowColor: '#0F172A',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.04,
+        shadowRadius: 4,
+        elevation: 1,
     },
     sm: {
         shadowColor: '#0F172A',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.04,
         shadowRadius: 4,
+        elevation: 1,
+    },
+    card: {
+        shadowColor: '#0F172A',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
         elevation: 2,
     },
     md: {
         shadowColor: '#0F172A',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.09,
-        shadowRadius: 10,
-        elevation: 4,
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+        elevation: 2,
     },
     lg: {
         shadowColor: '#0F172A',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.12,
-        shadowRadius: 18,
-        elevation: 8,
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.09,
+        shadowRadius: 16,
+        elevation: 6,
+    },
+    float: {
+        shadowColor: '#0F172A',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.09,
+        shadowRadius: 16,
+        elevation: 6,
     },
     glowBlue: {
         shadowColor: '#0284C7',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.25,
-        shadowRadius: 14,
-        elevation: 6,
+        shadowOpacity: 0.22,
+        shadowRadius: 12,
+        elevation: 5,
     },
     glowAmber: {
         shadowColor: '#D97706',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.25,
-        shadowRadius: 14,
-        elevation: 6,
+        shadowOpacity: 0.22,
+        shadowRadius: 12,
+        elevation: 5,
     },
 };
 

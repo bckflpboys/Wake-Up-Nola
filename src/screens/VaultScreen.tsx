@@ -1,6 +1,6 @@
 /**
  * Vault Screen - Shared Folder & Offline Knowledge Base
- * Indexes local files, notes, schedules, and documents for private offline RAG
+ * Progressive disclosure with filter tags, clean preview modal, and back navigation
  */
 
 import React, { useState } from 'react';
@@ -25,10 +25,16 @@ import { VaultDocument } from '../db/schema';
 import { colors, spacing, typography, borderRadius, shadows } from '../theme';
 
 interface VaultScreenProps {
+    onNavigateBack?: () => void;
     onAskNolaAboutDoc?: (prompt: string) => void;
 }
 
-export const VaultScreen: React.FC<VaultScreenProps> = ({ onAskNolaAboutDoc }) => {
+type DocFilter = 'all' | 'markdown' | 'json' | 'notes';
+
+export const VaultScreen: React.FC<VaultScreenProps> = ({
+    onNavigateBack,
+    onAskNolaAboutDoc,
+}) => {
     const {
         documents,
         folders,
@@ -40,6 +46,7 @@ export const VaultScreen: React.FC<VaultScreenProps> = ({ onAskNolaAboutDoc }) =
         isLoading,
     } = useVault();
 
+    const [selectedFilter, setSelectedFilter] = useState<DocFilter>('all');
     const [isAddModalVisible, setIsAddModalVisible] = useState(false);
     const [selectedDoc, setSelectedDoc] = useState<VaultDocument | null>(null);
 
@@ -71,28 +78,45 @@ export const VaultScreen: React.FC<VaultScreenProps> = ({ onAskNolaAboutDoc }) =
         }
     };
 
+    const filteredDocs = searchResults.filter(doc => {
+        if (selectedFilter === 'all') return true;
+        if (selectedFilter === 'markdown') return doc.fileType === 'markdown';
+        if (selectedFilter === 'json') return doc.fileType === 'json';
+        if (selectedFilter === 'notes') return !doc.fileType || doc.fileType === 'txt';
+        return true;
+    });
+
     return (
         <SafeAreaView style={styles.safeArea}>
             <View style={styles.container}>
-                {/* Header */}
+                {/* 1. Header with Back Button */}
                 <View style={styles.header}>
-                    <View>
+                    <TouchableOpacity
+                        onPress={onNavigateBack}
+                        style={styles.backBtn}
+                        activeOpacity={0.7}
+                    >
+                        <Ionicons name="chevron-back" size={18} color={colors.text.primary} />
+                    </TouchableOpacity>
+
+                    <View style={styles.headerTitleWrap}>
                         <Text style={styles.headerTitle}>Shared Vault</Text>
                         <Text style={styles.headerSubtitle}>
-                            {documents.length} offline documents indexed on this device
+                            {documents.length} offline docs indexed
                         </Text>
                     </View>
+
                     <TouchableOpacity
                         onPress={() => setIsAddModalVisible(true)}
                         style={styles.addBtn}
                         activeOpacity={0.8}
                     >
-                        <Ionicons name="add" size={18} color="#FFFFFF" />
+                        <Ionicons name="add" size={16} color="#FFFFFF" />
                         <Text style={styles.addBtnText}>Add Note</Text>
                     </TouchableOpacity>
                 </View>
 
-                {/* Search Bar */}
+                {/* 2. Minimalist Search Bar */}
                 <View style={styles.searchContainer}>
                     <Input
                         placeholder="Search local notes, schedules & files..."
@@ -105,33 +129,52 @@ export const VaultScreen: React.FC<VaultScreenProps> = ({ onAskNolaAboutDoc }) =
                     />
                 </View>
 
-                {/* Shared Folder Paths Bar */}
-                <View style={styles.foldersBar}>
-                    {folders.map(folder => (
-                        <View key={folder.id} style={styles.folderChip}>
-                            <Ionicons name="folder" size={13} color={colors.primary[600]} />
-                            <Text style={styles.folderChipText}>{folder.path}</Text>
-                            <Badge label={`${folder.documentCount} files`} variant="default" size="sm" />
-                        </View>
-                    ))}
+                {/* 3. Filter Tags */}
+                <View style={styles.filterRow}>
+                    <TouchableOpacity
+                        onPress={() => setSelectedFilter('all')}
+                        style={[styles.filterPill, selectedFilter === 'all' && styles.filterPillActive]}
+                    >
+                        <Text style={[styles.filterText, selectedFilter === 'all' && styles.filterTextActive]}>
+                            All ({documents.length})
+                        </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        onPress={() => setSelectedFilter('markdown')}
+                        style={[styles.filterPill, selectedFilter === 'markdown' && styles.filterPillActive]}
+                    >
+                        <Text style={[styles.filterText, selectedFilter === 'markdown' && styles.filterTextActive]}>
+                            Markdown Docs
+                        </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        onPress={() => setSelectedFilter('json')}
+                        style={[styles.filterPill, selectedFilter === 'json' && styles.filterPillActive]}
+                    >
+                        <Text style={[styles.filterText, selectedFilter === 'json' && styles.filterTextActive]}>
+                            JSON & Contacts
+                        </Text>
+                    </TouchableOpacity>
                 </View>
 
-                {/* Documents List */}
+                {/* 4. Documents List */}
                 <ScrollView
                     style={styles.scrollList}
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={false}
                 >
-                    {searchResults.length === 0 ? (
+                    {filteredDocs.length === 0 ? (
                         <View style={styles.emptyState}>
-                            <Ionicons name="folder-open-outline" size={44} color={colors.slate[400]} />
+                            <Ionicons name="folder-open-outline" size={40} color={colors.slate[400]} />
                             <Text style={styles.emptyTitle}>No matching documents found</Text>
                             <Text style={styles.emptyDesc}>
-                                Try searching for "schedule", "alpha", "contacts" or add a new offline note.
+                                Try searching for "schedule", "alpha", or add a new offline note.
                             </Text>
                         </View>
                     ) : (
-                        searchResults.map(doc => (
+                        filteredDocs.map(doc => (
                             <DocumentCard
                                 key={doc.id}
                                 document={doc}
@@ -161,7 +204,7 @@ export const VaultScreen: React.FC<VaultScreenProps> = ({ onAskNolaAboutDoc }) =
                                         onPress={() => setSelectedDoc(null)}
                                         style={styles.closeBtn}
                                     >
-                                        <Ionicons name="close" size={24} color={colors.slate[600]} />
+                                        <Ionicons name="close" size={22} color={colors.slate[600]} />
                                     </TouchableOpacity>
                                 </View>
 
@@ -201,7 +244,7 @@ export const VaultScreen: React.FC<VaultScreenProps> = ({ onAskNolaAboutDoc }) =
                                     onPress={() => setIsAddModalVisible(false)}
                                     style={styles.closeBtn}
                                 >
-                                    <Ionicons name="close" size={24} color={colors.slate[600]} />
+                                    <Ionicons name="close" size={22} color={colors.slate[600]} />
                                 </TouchableOpacity>
                             </View>
 
@@ -252,8 +295,8 @@ export const VaultScreen: React.FC<VaultScreenProps> = ({ onAskNolaAboutDoc }) =
 const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
-        backgroundColor: colors.background.primary,
-        paddingTop: Platform.OS === 'android' ? 30 : 0,
+        backgroundColor: colors.background.canvas,
+        paddingTop: Platform.OS === 'android' ? 32 : 0,
     },
     container: {
         flex: 1,
@@ -263,18 +306,33 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingHorizontal: spacing.lg,
-        paddingVertical: spacing.md,
+        paddingVertical: spacing.xs + 2,
+    },
+    backBtn: {
+        width: 38,
+        height: 38,
+        borderRadius: 19,
+        backgroundColor: colors.background.surface,
+        borderWidth: 1,
+        borderColor: colors.slate[200],
+        alignItems: 'center',
+        justifyContent: 'center',
+        ...shadows.subtle,
+    },
+    headerTitleWrap: {
+        flex: 1,
+        marginLeft: spacing.md,
     },
     headerTitle: {
-        fontSize: typography.fontSize['2xl'],
+        fontSize: typography.fontSize.lg,
         fontWeight: '800',
         color: colors.text.primary,
-        letterSpacing: -0.5,
+        letterSpacing: -0.4,
     },
     headerSubtitle: {
         fontSize: typography.fontSize.xs,
         color: colors.text.muted,
-        marginTop: 2,
+        marginTop: 1,
     },
     addBtn: {
         flexDirection: 'row',
@@ -283,7 +341,7 @@ const styles = StyleSheet.create({
         paddingVertical: 7,
         paddingHorizontal: spacing.md,
         borderRadius: borderRadius.full,
-        ...shadows.sm,
+        ...shadows.subtle,
     },
     addBtnText: {
         fontSize: typography.fontSize.xs,
@@ -293,39 +351,45 @@ const styles = StyleSheet.create({
     },
     searchContainer: {
         paddingHorizontal: spacing.lg,
+        marginTop: spacing.xs,
     },
     searchInput: {
         marginBottom: spacing.xs,
     },
-    foldersBar: {
+    filterRow: {
         flexDirection: 'row',
         paddingHorizontal: spacing.lg,
         paddingVertical: spacing.xs,
-        gap: spacing.sm,
-    },
-    folderChip: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#FFFFFF',
-        paddingVertical: 4,
-        paddingHorizontal: spacing.sm,
-        borderRadius: borderRadius.md,
-        borderWidth: 1,
-        borderColor: 'rgba(15, 23, 42, 0.08)',
         gap: 6,
-        ...shadows.subtle,
     },
-    folderChipText: {
-        fontSize: typography.fontSize.xs,
-        color: colors.text.primary,
-        fontFamily: 'monospace',
+    filterPill: {
+        paddingVertical: 5,
+        paddingHorizontal: spacing.sm + 2,
+        borderRadius: borderRadius.full,
+        backgroundColor: colors.background.surface,
+        borderWidth: 1,
+        borderColor: colors.slate[200],
+    },
+    filterPillActive: {
+        backgroundColor: colors.text.primary,
+        borderColor: colors.text.primary,
+    },
+    filterText: {
+        fontSize: 11,
+        fontWeight: '600',
+        color: colors.text.secondary,
+    },
+    filterTextActive: {
+        color: '#FFFFFF',
+        fontWeight: '700',
     },
     scrollList: {
         flex: 1,
     },
     scrollContent: {
-        padding: spacing.lg,
-        paddingBottom: spacing['3xl'],
+        paddingHorizontal: spacing.lg,
+        paddingTop: spacing.xs,
+        paddingBottom: spacing['4xl'],
     },
     emptyState: {
         alignItems: 'center',
@@ -333,7 +397,7 @@ const styles = StyleSheet.create({
         paddingVertical: spacing['3xl'],
     },
     emptyTitle: {
-        fontSize: typography.fontSize.base,
+        fontSize: typography.fontSize.sm + 1,
         fontWeight: '700',
         color: colors.text.secondary,
         marginTop: spacing.md,
@@ -352,7 +416,7 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-end',
     },
     modalContent: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.background.surface,
         borderTopLeftRadius: borderRadius['2xl'],
         borderTopRightRadius: borderRadius['2xl'],
         maxHeight: '85%',
@@ -372,12 +436,12 @@ const styles = StyleSheet.create({
         marginRight: spacing.sm,
     },
     modalTitle: {
-        fontSize: typography.fontSize.lg,
-        fontWeight: '700',
+        fontSize: typography.fontSize.md,
+        fontWeight: '800',
         color: colors.text.primary,
     },
     modalSub: {
-        fontSize: typography.fontSize.xs,
+        fontSize: 11,
         color: colors.primary[600],
         fontFamily: 'monospace',
         marginTop: 2,

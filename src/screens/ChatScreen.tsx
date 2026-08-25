@@ -1,7 +1,7 @@
 /**
- * Chat Screen - Talk with Nola
- * Modern, airy light-blueish layout inspired by VoxCode
- * Features floating hero input, colorful action pills, thinking visualizer, and bottom bar.
+ * Chat Screen - Wake Up Nola Main Workspace
+ * Single unified dynamic input (Hero mode when empty, cleanly docked to bottom when active)
+ * Premium borders, progressive disclosure, and thoughtful typography hierarchy.
  */
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -16,12 +16,13 @@ import {
     KeyboardAvoidingView,
     Platform,
     ActivityIndicator,
+    Modal,
+    Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNola } from '../contexts/NolaContext';
 import { useVault } from '../contexts/VaultContext';
 import { StepExecutionViewer } from '../components/molecules/StepExecutionViewer';
-import { Badge } from '../components/atoms/Badge';
 import { colors, spacing, typography, borderRadius, shadows } from '../theme';
 
 interface ChatScreenProps {
@@ -46,12 +47,18 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onNavigateTab }) => {
 
     const [input, setInput] = useState('');
     const [showModelPicker, setShowModelPicker] = useState(false);
+    const [showSkillsModal, setShowSkillsModal] = useState(false);
     const [thinkingExpanded, setThinkingExpanded] = useState<Record<string, boolean>>({});
     const scrollViewRef = useRef<ScrollView>(null);
 
+    // Has the user started a conversation yet?
+    const hasUserMessages = messages.some(m => m.role === 'user');
+
     useEffect(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: true });
-    }, [messages, activeSteps]);
+        if (hasUserMessages) {
+            scrollViewRef.current?.scrollToEnd({ animated: true });
+        }
+    }, [messages, activeSteps, hasUserMessages]);
 
     const handleSend = async () => {
         if (!input.trim() || isProcessing) return;
@@ -76,22 +83,20 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onNavigateTab }) => {
         }));
     };
 
-    const hasUserMessages = messages.some(m => m.role === 'user');
-
     return (
         <SafeAreaView style={styles.safeArea}>
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 style={styles.container}
             >
-                {/* 1. Top Navigation Bar */}
+                {/* 1. Top Minimalist Header */}
                 <View style={styles.topNav}>
                     <TouchableOpacity
                         onPress={() => onNavigateTab?.('connectors')}
                         style={styles.iconCircleBtn}
                         activeOpacity={0.7}
                     >
-                        <Ionicons name="chevron-back" size={18} color={colors.text.primary} />
+                        <Ionicons name="chevron-back" size={17} color={colors.text.primary} />
                     </TouchableOpacity>
 
                     {/* Brand Pill */}
@@ -99,50 +104,50 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onNavigateTab }) => {
                         <Text style={styles.brandPillText}>WAKE UP NOLA</Text>
                     </View>
 
-                    {/* Standby / Play Button */}
-                    <TouchableOpacity
-                        onPress={startVoiceTrigger}
-                        style={[styles.iconCircleBtn, isListening && styles.iconCircleBtnActive]}
-                        activeOpacity={0.7}
-                    >
-                        <Ionicons
-                            name={isListening ? 'mic' : 'play-outline'}
-                            size={16}
-                            color={isListening ? colors.primary[500] : colors.text.primary}
-                        />
-                    </TouchableOpacity>
+                    {/* Right Action Cluster */}
+                    <View style={styles.rightNavCluster}>
+                        <TouchableOpacity
+                            onPress={startVoiceTrigger}
+                            style={[styles.iconCircleBtn, isListening && styles.iconCircleBtnActive]}
+                            activeOpacity={0.7}
+                        >
+                            <Ionicons
+                                name={isListening ? 'mic' : 'play-outline'}
+                                size={15}
+                                color={isListening ? colors.primary[500] : colors.text.primary}
+                            />
+                        </TouchableOpacity>
 
-                    {/* New Chat Button */}
-                    <TouchableOpacity
-                        onPress={clearChatHistory}
-                        style={styles.iconCircleBtn}
-                        activeOpacity={0.7}
-                    >
-                        <Ionicons name="add-outline" size={18} color={colors.text.primary} />
-                    </TouchableOpacity>
+                        <TouchableOpacity
+                            onPress={clearChatHistory}
+                            style={styles.iconCircleBtn}
+                            activeOpacity={0.7}
+                        >
+                            <Ionicons name="add-outline" size={17} color={colors.text.primary} />
+                        </TouchableOpacity>
 
-                    {/* Connectors / Settings Button */}
-                    <TouchableOpacity
-                        onPress={() => onNavigateTab?.('connectors')}
-                        style={styles.iconCircleBtn}
-                        activeOpacity={0.7}
-                    >
-                        <Ionicons name="settings-outline" size={16} color={colors.text.primary} />
-                    </TouchableOpacity>
+                        <TouchableOpacity
+                            onPress={() => onNavigateTab?.('connectors')}
+                            style={styles.iconCircleBtn}
+                            activeOpacity={0.7}
+                        >
+                            <Ionicons name="settings-outline" size={15} color={colors.text.primary} />
+                        </TouchableOpacity>
+                    </View>
                 </View>
 
-                {/* 2. Context & Status Pill Bar */}
+                {/* 2. Sub-Context Pills Bar */}
                 <View style={styles.contextBar}>
                     <TouchableOpacity
                         onPress={() => onNavigateTab?.('vault')}
                         style={styles.contextPill}
                         activeOpacity={0.8}
                     >
-                        <Ionicons name="folder-outline" size={13} color={colors.text.primary} />
-                        <Text style={styles.contextPillText}>Shared Vault</Text>
+                        <Ionicons name="cube-outline" size={13} color={colors.text.primary} />
+                        <Text style={styles.contextPillText}>Vault</Text>
                         <Text style={styles.contextPillDivider}>|</Text>
-                        <Ionicons name="git-branch-outline" size={13} color={colors.text.secondary} />
-                        <Text style={styles.contextPillSub}>{documents.length} docs</Text>
+                        <Ionicons name="git-branch-outline" size={12} color={colors.text.secondary} />
+                        <Text style={styles.contextPillSub}>main</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -150,116 +155,93 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onNavigateTab }) => {
                         style={styles.connectorsPill}
                         activeOpacity={0.8}
                     >
-                        <Ionicons name="extension-puzzle-outline" size={13} color={colors.primary[600]} />
-                        <Text style={styles.connectorsPillText}>Connectors</Text>
+                        <Ionicons name="document-text-outline" size={13} color={colors.primary[600]} />
+                        <Text style={styles.connectorsPillText}>Open Hub</Text>
                     </TouchableOpacity>
                 </View>
 
-                {/* Model Selector Dropdown Modal */}
-                {showModelPicker && (
-                    <View style={styles.modelDropdownCard}>
-                        <Text style={styles.dropdownHeader}>Select Active AI Engine</Text>
-                        {availableModels.map(m => {
-                            const isSelected = m.modelKey === activeModel.modelKey;
-                            return (
-                                <TouchableOpacity
-                                    key={m.id}
-                                    onPress={() => {
-                                        setActiveModel(m.modelKey);
-                                        setShowModelPicker(false);
-                                    }}
-                                    style={[styles.dropdownItem, isSelected && styles.dropdownItemSelected]}
-                                    activeOpacity={0.8}
-                                >
-                                    <View>
-                                        <Text style={[styles.dropdownName, isSelected && styles.dropdownNameSelected]}>
-                                            {m.name}
-                                        </Text>
-                                        <Text style={styles.dropdownDesc}>{m.sizeMb > 0 ? `${m.sizeMb} MB • On-Device` : m.type}</Text>
-                                    </View>
-                                    {isSelected && (
-                                        <Ionicons name="checkmark-circle" size={18} color={colors.primary[500]} />
-                                    )}
-                                </TouchableOpacity>
-                            );
-                        })}
-                    </View>
-                )}
-
-                {/* 3. Main Workspace / Messages Scroll */}
+                {/* 3. Main Body Scroll (Hero view vs Active conversation) */}
                 <ScrollView
                     ref={scrollViewRef}
                     style={styles.scrollArea}
-                    contentContainerStyle={styles.scrollContent}
+                    contentContainerStyle={[
+                        styles.scrollContent,
+                        !hasUserMessages && styles.heroScrollContent,
+                    ]}
                     showsVerticalScrollIndicator={false}
                 >
-                    {/* Hero Section (Shown before or above messages) */}
-                    {!hasUserMessages && (
-                        <View style={styles.heroSection}>
-                            {/* Ambient Mesh Orb */}
-                            <View style={styles.meshOrb}>
-                                <Ionicons name="planet-outline" size={44} color={colors.slate[800]} />
+                    {/* === HERO MODE (Shown when no conversation is active) === */}
+                    {!hasUserMessages ? (
+                        <View style={styles.heroWrapper}>
+                            {/* Spherical Assistant Wireframe Orb */}
+                            <View style={styles.heroOrbContainer}>
+                                <View style={styles.heroOrbGlow} />
+                                <View style={styles.heroOrbCircle}>
+                                    <Ionicons name="planet-outline" size={38} color={colors.slate[800]} />
+                                </View>
                             </View>
 
                             {/* Headline Greeting */}
-                            <Text style={styles.heroGreeting}>What shall we do, Alex?</Text>
+                            <Text style={styles.heroTitle}>What shall we do,{'\n'}Alex?</Text>
 
-                            {/* Floating Card Input Box (Hero Mode) */}
-                            <View style={styles.heroCardInput}>
+                            {/* Floating Central Input Card */}
+                            <View style={styles.heroCard}>
                                 <TextInput
                                     style={styles.heroTextInput}
-                                    placeholder="Type '/' to invoke skills or ask anything..."
+                                    placeholder="Type '/' to invoke plugins and skills or ask anything..."
                                     placeholderTextColor={colors.slate[400]}
                                     value={input}
                                     onChangeText={setInput}
                                     multiline
                                 />
 
-                                <View style={styles.heroCardActions}>
-                                    <TouchableOpacity
-                                        onPress={() => onNavigateTab?.('connectors')}
-                                        style={styles.actionPillBtn}
-                                        activeOpacity={0.7}
-                                    >
-                                        <Ionicons name="extension-puzzle-outline" size={14} color={colors.accent[600]} />
-                                    </TouchableOpacity>
+                                <View style={styles.heroCardBottomRow}>
+                                    <View style={styles.heroLeftActions}>
+                                        <TouchableOpacity
+                                            onPress={() => setShowSkillsModal(true)}
+                                            style={styles.microActionBtn}
+                                            activeOpacity={0.7}
+                                        >
+                                            <Ionicons name="extension-puzzle-outline" size={15} color={colors.accent[600]} />
+                                        </TouchableOpacity>
 
-                                    <TouchableOpacity
-                                        onPress={() => handleQuickPrompt('Break down this task into failsafe micro-steps')}
-                                        style={styles.actionPillBtn}
-                                        activeOpacity={0.7}
-                                    >
-                                        <Ionicons name="bulb-outline" size={14} color={colors.primary[600]} />
-                                    </TouchableOpacity>
+                                        <TouchableOpacity
+                                            onPress={() => handleQuickPrompt('Break down this goal into failsafe micro-steps')}
+                                            style={styles.microActionBtn}
+                                            activeOpacity={0.7}
+                                        >
+                                            <Ionicons name="bulb-outline" size={15} color={colors.primary[600]} />
+                                        </TouchableOpacity>
 
-                                    {/* Model Switcher Pill */}
-                                    <TouchableOpacity
-                                        onPress={() => setShowModelPicker(!showModelPicker)}
-                                        style={styles.heroModelPill}
-                                        activeOpacity={0.7}
-                                    >
-                                        <Ionicons name="hardware-chip-outline" size={13} color={colors.primary[600]} />
-                                        <Text style={styles.heroModelText} numberOfLines={1}>
-                                            {activeModel.name}
-                                        </Text>
-                                        <Ionicons name="chevron-down" size={12} color={colors.slate[500]} />
-                                    </TouchableOpacity>
+                                        {/* Model Dropdown Pill */}
+                                        <TouchableOpacity
+                                            onPress={() => setShowModelPicker(true)}
+                                            style={styles.heroModelDropdownPill}
+                                            activeOpacity={0.8}
+                                        >
+                                            <Ionicons name="hardware-chip-outline" size={12} color={colors.primary[600]} />
+                                            <Text style={styles.heroModelDropdownText} numberOfLines={1}>
+                                                {activeModel.name.split(' ')[0]}...
+                                            </Text>
+                                            <Ionicons name="chevron-down" size={11} color={colors.slate[400]} />
+                                        </TouchableOpacity>
 
-                                    <TouchableOpacity
-                                        onPress={() => onNavigateTab?.('vault')}
-                                        style={styles.actionPillBtn}
-                                        activeOpacity={0.7}
-                                    >
-                                        <Ionicons name="attach-outline" size={16} color={colors.slate[600]} />
-                                    </TouchableOpacity>
+                                        <TouchableOpacity
+                                            onPress={() => onNavigateTab?.('vault')}
+                                            style={styles.microActionBtn}
+                                            activeOpacity={0.7}
+                                        >
+                                            <Ionicons name="attach-outline" size={16} color={colors.slate[500]} />
+                                        </TouchableOpacity>
+                                    </View>
 
                                     {/* Send Orb Button */}
                                     <TouchableOpacity
                                         onPress={handleSend}
                                         disabled={!input.trim() || isProcessing}
                                         style={[
-                                            styles.sendOrbBtn,
-                                            (!input.trim() || isProcessing) && styles.sendOrbDisabled,
+                                            styles.heroSendOrb,
+                                            (!input.trim() || isProcessing) && styles.heroSendOrbDisabled,
                                         ]}
                                         activeOpacity={0.8}
                                     >
@@ -272,196 +254,327 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onNavigateTab }) => {
                                 </View>
                             </View>
 
-                            {/* Vibrant Colorful Action Pills */}
-                            <View style={styles.actionTagsWrap}>
+                            {/* Vibrant Action Chips Grid */}
+                            <View style={styles.chipsContainer}>
                                 <TouchableOpacity
                                     onPress={() => handleQuickPrompt('Scan and verify all connected device apps and vault files')}
-                                    style={[styles.actionTag, { backgroundColor: colors.tags.emeraldBg }]}
+                                    style={[styles.actionChip, { backgroundColor: colors.chips.emerald.bg, borderColor: colors.chips.emerald.border }]}
                                     activeOpacity={0.8}
                                 >
-                                    <Ionicons name="checkmark-circle-outline" size={14} color="#FFFFFF" />
-                                    <Text style={styles.actionTagText}>Device Vault Connected</Text>
+                                    <Ionicons name="checkmark-circle-outline" size={13} color="#FFFFFF" />
+                                    <Text style={styles.chipText}>GitHub Connected</Text>
                                 </TouchableOpacity>
 
                                 <TouchableOpacity
-                                    onPress={() => handleQuickPrompt('What am I missing today?')}
-                                    style={[styles.actionTag, { backgroundColor: colors.tags.navyBg }]}
+                                    onPress={() => handleQuickPrompt('What am I missing from my schedule today?')}
+                                    style={[styles.actionChip, { backgroundColor: colors.chips.navy.bg, borderColor: colors.chips.navy.border }]}
                                     activeOpacity={0.8}
                                 >
-                                    <Ionicons name="alert-circle-outline" size={14} color="#FFFFFF" />
-                                    <Text style={styles.actionTagText}>What Am I Missing?</Text>
+                                    <Ionicons name="globe-outline" size={13} color="#FFFFFF" />
+                                    <Text style={styles.chipText}>Free Browser Agent</Text>
                                 </TouchableOpacity>
 
                                 <TouchableOpacity
                                     onPress={() => handleQuickPrompt('Summarize Project Alpha notes from my shared vault')}
-                                    style={[styles.actionTag, { backgroundColor: colors.tags.tealBg }]}
+                                    style={[styles.actionChip, { backgroundColor: colors.chips.teal.bg, borderColor: colors.chips.teal.border }]}
                                     activeOpacity={0.8}
                                 >
-                                    <Ionicons name="rocket-outline" size={14} color="#FFFFFF" />
-                                    <Text style={styles.actionTagText}>Project Alpha Notes</Text>
+                                    <Ionicons name="rocket-outline" size={13} color="#FFFFFF" />
+                                    <Text style={styles.chipText}>Create SaaS</Text>
                                 </TouchableOpacity>
 
                                 <TouchableOpacity
-                                    onPress={() => handleQuickPrompt('Plan my afternoon schedule with failsafe steps')}
-                                    style={[styles.actionTag, { backgroundColor: colors.tags.violetBg }]}
+                                    onPress={() => handleQuickPrompt('Review my shared contacts and lead engineer notes')}
+                                    style={[styles.actionChip, { backgroundColor: colors.chips.amber.bg, borderColor: colors.chips.amber.border }]}
                                     activeOpacity={0.8}
                                 >
-                                    <Ionicons name="grid-outline" size={14} color="#FFFFFF" />
-                                    <Text style={styles.actionTagText}>Decompose Tasks</Text>
+                                    <Ionicons name="bag-handle-outline" size={13} color="#FFFFFF" />
+                                    <Text style={styles.chipText}>Create Store</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    onPress={() => handleQuickPrompt('Break down my afternoon tasks into verified steps')}
+                                    style={[styles.actionChip, { backgroundColor: colors.chips.violet.bg, borderColor: colors.chips.violet.border }]}
+                                    activeOpacity={0.8}
+                                >
+                                    <Ionicons name="game-controller-outline" size={13} color="#FFFFFF" />
+                                    <Text style={styles.chipText}>Create Apps & Games</Text>
                                 </TouchableOpacity>
                             </View>
                         </View>
-                    )}
+                    ) : (
+                        /* === ACTIVE CHAT STREAM === */
+                        <View style={styles.chatFlowContainer}>
+                            {messages.map((msg, idx) => {
+                                const isUser = msg.role === 'user';
+                                const isExpanded = thinkingExpanded[msg.id] || false;
 
-                    {/* Messages Flow */}
-                    {messages.map((msg, idx) => {
-                        const isUser = msg.role === 'user';
-                        const isExpanded = thinkingExpanded[msg.id] || false;
-
-                        if (isUser) {
-                            return (
-                                <View key={msg.id || idx} style={styles.userMessageRow}>
-                                    <View style={styles.userPillBubble}>
-                                        <Text style={styles.userBubbleText}>{msg.content}</Text>
-                                        <Ionicons name="chatbubble-outline" size={13} color="#FFFFFF" style={styles.userMsgIcon} />
-                                    </View>
-                                </View>
-                            );
-                        }
-
-                        return (
-                            <View key={msg.id || idx} style={styles.assistantCardWrapper}>
-                                <View style={styles.assistantCard}>
-                                    {/* Thinking Header Banner */}
-                                    {msg.steps && msg.steps.length > 0 && (
-                                        <TouchableOpacity
-                                            onPress={() => toggleThinking(msg.id)}
-                                            style={styles.thinkingHeader}
-                                            activeOpacity={0.7}
-                                        >
-                                            <View style={styles.thinkingIconBox}>
-                                                <Ionicons name="bulb" size={13} color={colors.primary[500]} />
+                                if (isUser) {
+                                    return (
+                                        <View key={msg.id || idx} style={styles.userBubbleRow}>
+                                            <View style={styles.userBubble}>
+                                                <Text style={styles.userBubbleText}>{msg.content}</Text>
+                                                <Ionicons name="keypad-outline" size={12} color="#FFFFFF" style={styles.userIcon} />
                                             </View>
-                                            <Text style={styles.thinkingTitle}>
-                                                Task Reasoning ({msg.steps.length} Steps)
-                                            </Text>
-                                            <Text style={styles.thinkingViewText}>
-                                                {isExpanded ? 'HIDE' : 'VIEW'}
-                                            </Text>
-                                            <Ionicons
-                                                name={isExpanded ? 'chevron-up' : 'chevron-forward'}
-                                                size={12}
-                                                color={colors.primary[500]}
-                                            />
-                                        </TouchableOpacity>
-                                    )}
-
-                                    {/* Collapsible Steps Box */}
-                                    {isExpanded && msg.steps && (
-                                        <View style={styles.expandedStepsWrap}>
-                                            <StepExecutionViewer steps={msg.steps} />
                                         </View>
-                                    )}
+                                    );
+                                }
 
-                                    {/* Main Assistant Content */}
-                                    <Text style={styles.assistantBodyText}>{msg.content}</Text>
+                                return (
+                                    <View key={msg.id || idx} style={styles.assistantCardRow}>
+                                        <View style={styles.assistantCard}>
+                                            {/* Collapsible Reasoning Header */}
+                                            {msg.steps && msg.steps.length > 0 && (
+                                                <TouchableOpacity
+                                                    onPress={() => toggleThinking(msg.id)}
+                                                    style={styles.reasoningHeader}
+                                                    activeOpacity={0.7}
+                                                >
+                                                    <View style={styles.reasoningIconBadge}>
+                                                        <Ionicons name="bulb" size={12} color={colors.primary[500]} />
+                                                    </View>
+                                                    <Text style={styles.reasoningTitle} numberOfLines={1}>
+                                                        User just asked...
+                                                    </Text>
+                                                    <Text style={styles.reasoningViewText}>
+                                                        {isExpanded ? 'HIDE' : 'VIEW'}
+                                                    </Text>
+                                                    <Ionicons
+                                                        name={isExpanded ? 'chevron-up' : 'chevron-forward'}
+                                                        size={11}
+                                                        color={colors.slate[400]}
+                                                    />
+                                                </TouchableOpacity>
+                                            )}
 
-                                    {/* Assistant Card Footer */}
-                                    <View style={styles.cardFooterRow}>
-                                        <Text style={styles.footerModelName}>
-                                            {msg.modelUsed || activeModel.name}
-                                        </Text>
-                                        {msg.latencyMs && (
-                                            <View style={styles.latencyWrap}>
-                                                <Ionicons name="time-outline" size={11} color={colors.standby[500]} />
-                                                <Text style={styles.latencyNumber}>
-                                                    {(msg.latencyMs / 1000).toFixed(2)}s
+                                            {/* Expanded Micro-Agent Steps */}
+                                            {isExpanded && msg.steps && (
+                                                <View style={styles.reasoningExpandedBox}>
+                                                    <StepExecutionViewer steps={msg.steps} />
+                                                </View>
+                                            )}
+
+                                            {/* Message Content */}
+                                            <Text style={styles.assistantText}>{msg.content}</Text>
+
+                                            {/* Card Footer */}
+                                            <View style={styles.assistantFooter}>
+                                                <Text style={styles.footerModelText}>
+                                                    {msg.modelUsed || activeModel.name}
                                                 </Text>
+                                                <View style={styles.footerLatencyWrap}>
+                                                    <Ionicons name="timer-outline" size={11} color={colors.standby[600]} />
+                                                    <Text style={styles.footerLatencyText}>
+                                                        {msg.latencyMs ? `${(msg.latencyMs / 1000).toFixed(2)}s` : '0.40s'}
+                                                    </Text>
+                                                </View>
                                             </View>
-                                        )}
+                                        </View>
                                     </View>
-                                </View>
-                            </View>
-                        );
-                    })}
+                                );
+                            })}
 
-                    {/* Live Processing Indicator */}
-                    {isProcessing && (
-                        <View style={styles.liveProcessingBox}>
-                            <StepExecutionViewer steps={activeSteps} isProcessing={true} />
+                            {/* Live Step Execution Indicator */}
+                            {isProcessing && (
+                                <View style={styles.liveStepBox}>
+                                    <StepExecutionViewer steps={activeSteps} isProcessing={true} />
+                                </View>
+                            )}
                         </View>
                     )}
                 </ScrollView>
 
-                {/* 4. Bottom Sticky Input Bar */}
-                <View style={styles.bottomBarWrapper}>
-                    <View style={styles.bottomInputRow}>
-                        {/* Skills / Puzzle Button */}
-                        <TouchableOpacity
-                            onPress={() => onNavigateTab?.('connectors')}
-                            style={styles.bottomIconBtn}
-                            activeOpacity={0.7}
-                        >
-                            <Ionicons name="extension-puzzle-outline" size={18} color={colors.primary[600]} />
-                        </TouchableOpacity>
-
-                        {/* Standby / Mic Button */}
-                        <TouchableOpacity
-                            onPress={startVoiceTrigger}
-                            style={[styles.bottomIconBtn, isListening && styles.bottomIconBtnListening]}
-                            activeOpacity={0.7}
-                        >
-                            <Ionicons
-                                name={isListening ? 'mic' : 'bulb-outline'}
-                                size={18}
-                                color={isListening ? colors.accent[600] : colors.primary[600]}
-                            />
-                        </TouchableOpacity>
-
-                        {/* Input Capsule */}
-                        <View style={styles.bottomInputCapsule}>
-                            <TouchableOpacity onPress={() => onNavigateTab?.('vault')}>
-                                <Ionicons name="attach-outline" size={18} color={colors.slate[400]} />
+                {/* 4. DOCKED BOTTOM INPUT BAR (Only shown when in active chat conversation) */}
+                {hasUserMessages && (
+                    <View style={styles.dockedBottomBar}>
+                        <View style={styles.dockedInputRow}>
+                            {/* Skills / Puzzle */}
+                            <TouchableOpacity
+                                onPress={() => setShowSkillsModal(true)}
+                                style={styles.dockedIconBtn}
+                                activeOpacity={0.7}
+                            >
+                                <Ionicons name="extension-puzzle-outline" size={17} color={colors.primary[600]} />
                             </TouchableOpacity>
-                            <TextInput
-                                style={styles.bottomTextInput}
-                                placeholder="Type a request..."
-                                placeholderTextColor={colors.slate[400]}
-                                value={input}
-                                onChangeText={setInput}
-                                multiline
-                            />
+
+                            {/* Reasoning Brain Button */}
+                            <TouchableOpacity
+                                onPress={() => handleQuickPrompt('Break down this task step-by-step')}
+                                style={styles.dockedIconBtn}
+                                activeOpacity={0.7}
+                            >
+                                <Ionicons name="bulb-outline" size={17} color={colors.accent[600]} />
+                            </TouchableOpacity>
+
+                            {/* Input Capsule */}
+                            <View style={styles.dockedInputCapsule}>
+                                <TouchableOpacity onPress={() => onNavigateTab?.('vault')}>
+                                    <Ionicons name="attach-outline" size={17} color={colors.slate[400]} />
+                                </TouchableOpacity>
+                                <TextInput
+                                    style={styles.dockedTextInput}
+                                    placeholder="Type..."
+                                    placeholderTextColor={colors.slate[400]}
+                                    value={input}
+                                    onChangeText={setInput}
+                                    multiline
+                                />
+                            </View>
+
+                            {/* Circular Black Orb Send Button */}
+                            <TouchableOpacity
+                                onPress={handleSend}
+                                disabled={!input.trim() || isProcessing}
+                                style={[
+                                    styles.dockedSendOrb,
+                                    (!input.trim() || isProcessing) && styles.dockedSendOrbDisabled,
+                                ]}
+                                activeOpacity={0.8}
+                            >
+                                {isProcessing ? (
+                                    <ActivityIndicator size="small" color="#FFFFFF" />
+                                ) : (
+                                    <Ionicons name="arrow-up" size={17} color="#FFFFFF" />
+                                )}
+                            </TouchableOpacity>
                         </View>
 
-                        {/* Send Orb Button */}
+                        {/* Floating Model Indicator Pill */}
                         <TouchableOpacity
-                            onPress={handleSend}
-                            disabled={!input.trim() || isProcessing}
-                            style={[
-                                styles.bottomSendOrb,
-                                (!input.trim() || isProcessing) && styles.bottomSendOrbDisabled,
-                            ]}
-                            activeOpacity={0.8}
+                            onPress={() => setShowModelPicker(true)}
+                            style={styles.floatingBottomModelPill}
+                            activeOpacity={0.7}
                         >
-                            {isProcessing ? (
-                                <ActivityIndicator size="small" color="#FFFFFF" />
-                            ) : (
-                                <Ionicons name="arrow-up" size={18} color="#FFFFFF" />
-                            )}
+                            <Ionicons name="hardware-chip-outline" size={12} color={colors.primary[600]} />
+                            <Text style={styles.floatingModelText}>{activeModel.name.toUpperCase()}</Text>
+                            <Ionicons name="chevron-down" size={11} color={colors.slate[400]} />
                         </TouchableOpacity>
                     </View>
+                )}
 
-                    {/* Floating Bottom Active Model Selector Pill */}
-                    <TouchableOpacity
-                        onPress={() => setShowModelPicker(!showModelPicker)}
-                        style={styles.floatingBottomModelPill}
-                        activeOpacity={0.7}
+                {/* 5. Bottom Sheet Model Selector Modal */}
+                <Modal
+                    visible={showModelPicker}
+                    animationType="fade"
+                    transparent={true}
+                    onRequestClose={() => setShowModelPicker(false)}
+                >
+                    <Pressable
+                        style={styles.modalOverlay}
+                        onPress={() => setShowModelPicker(false)}
                     >
-                        <Ionicons name="hardware-chip-outline" size={13} color={colors.primary[600]} />
-                        <Text style={styles.floatingModelText}>{activeModel.name.toUpperCase()}</Text>
-                        <Ionicons name="chevron-down" size={12} color={colors.slate[500]} />
-                    </TouchableOpacity>
-                </View>
+                        <View style={styles.modelModalCard}>
+                            <View style={styles.modelModalHeader}>
+                                <Text style={styles.modelModalTitle}>Select AI Engine</Text>
+                                <TouchableOpacity onPress={() => setShowModelPicker(false)}>
+                                    <Ionicons name="close" size={20} color={colors.slate[500]} />
+                                </TouchableOpacity>
+                            </View>
+
+                            <ScrollView style={{ maxHeight: 320 }}>
+                                {availableModels.map(m => {
+                                    const isSelected = m.modelKey === activeModel.modelKey;
+                                    return (
+                                        <TouchableOpacity
+                                            key={m.id}
+                                            onPress={() => {
+                                                setActiveModel(m.modelKey);
+                                                setShowModelPicker(false);
+                                            }}
+                                            style={[styles.modelOptionRow, isSelected && styles.modelOptionRowActive]}
+                                            activeOpacity={0.8}
+                                        >
+                                            <View style={styles.modelOptionLeft}>
+                                                <Ionicons
+                                                    name={m.type === 'on-device' ? 'hardware-chip' : m.type === 'lan-desktop' ? 'wifi' : 'cloud'}
+                                                    size={18}
+                                                    color={isSelected ? colors.primary[600] : colors.slate[400]}
+                                                />
+                                                <View style={{ marginLeft: 10 }}>
+                                                    <Text style={[styles.modelOptionName, isSelected && styles.modelOptionNameActive]}>
+                                                        {m.name}
+                                                    </Text>
+                                                    <Text style={styles.modelOptionSub}>
+                                                        {m.sizeMb > 0 ? `${m.sizeMb} MB • On-Device` : m.type}
+                                                    </Text>
+                                                </View>
+                                            </View>
+                                            {isSelected && (
+                                                <Ionicons name="checkmark-circle" size={20} color={colors.primary[500]} />
+                                            )}
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </ScrollView>
+                        </View>
+                    </Pressable>
+                </Modal>
+
+                {/* 6. Skills & Plugins Modal */}
+                <Modal
+                    visible={showSkillsModal}
+                    animationType="fade"
+                    transparent={true}
+                    onRequestClose={() => setShowSkillsModal(false)}
+                >
+                    <Pressable
+                        style={styles.modalOverlay}
+                        onPress={() => setShowSkillsModal(false)}
+                    >
+                        <View style={styles.modelModalCard}>
+                            <View style={styles.modelModalHeader}>
+                                <Text style={styles.modelModalTitle}>Assistant Skills & Plugins</Text>
+                                <TouchableOpacity onPress={() => setShowSkillsModal(false)}>
+                                    <Ionicons name="close" size={20} color={colors.slate[500]} />
+                                </TouchableOpacity>
+                            </View>
+
+                            <ScrollView style={{ maxHeight: 300 }}>
+                                <TouchableOpacity
+                                    onPress={() => {
+                                        setShowSkillsModal(false);
+                                        handleQuickPrompt('Scan device shared folder and extract missing action items');
+                                    }}
+                                    style={styles.skillRow}
+                                >
+                                    <Ionicons name="folder-open-outline" size={20} color={colors.primary[600]} />
+                                    <View style={{ marginLeft: 10, flex: 1 }}>
+                                        <Text style={styles.skillTitle}>Shared Vault RAG</Text>
+                                        <Text style={styles.skillDesc}>Search notes & extract answers offline</Text>
+                                    </View>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    onPress={() => {
+                                        setShowSkillsModal(false);
+                                        handleQuickPrompt('Check my calendar and agenda: what am I missing today?');
+                                    }}
+                                    style={styles.skillRow}
+                                >
+                                    <Ionicons name="alert-circle-outline" size={20} color={colors.standby[600]} />
+                                    <View style={{ marginLeft: 10, flex: 1 }}>
+                                        <Text style={styles.skillTitle}>Missing Action Watchdog</Text>
+                                        <Text style={styles.skillDesc}>Detects schedule gaps and flagged items</Text>
+                                    </View>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    onPress={() => {
+                                        setShowSkillsModal(false);
+                                        onNavigateTab?.('connectors');
+                                    }}
+                                    style={styles.skillRow}
+                                >
+                                    <Ionicons name="extension-puzzle-outline" size={20} color={colors.accent[600]} />
+                                    <View style={{ marginLeft: 10, flex: 1 }}>
+                                        <Text style={styles.skillTitle}>Deep Device Connectors</Text>
+                                        <Text style={styles.skillDesc}>Manage app and API permissions</Text>
+                                    </View>
+                                </TouchableOpacity>
+                            </ScrollView>
+                        </View>
+                    </Pressable>
+                </Modal>
             </KeyboardAvoidingView>
         </SafeAreaView>
     );
@@ -470,40 +583,42 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onNavigateTab }) => {
 const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
-        backgroundColor: colors.background.primary,
-        paddingTop: Platform.OS === 'android' ? 30 : 0,
+        backgroundColor: colors.background.canvas,
+        paddingTop: Platform.OS === 'android' ? 32 : 0,
     },
     container: {
         flex: 1,
     },
+
+    // 1. Top Header
     topNav: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: spacing.md,
-        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.lg,
+        paddingVertical: spacing.xs,
     },
     iconCircleBtn: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: '#FFFFFF',
+        width: 38,
+        height: 38,
+        borderRadius: 19,
+        backgroundColor: colors.background.surface,
         borderWidth: 1,
-        borderColor: 'rgba(15, 23, 42, 0.12)',
+        borderColor: colors.slate[200],
         alignItems: 'center',
         justifyContent: 'center',
         ...shadows.subtle,
     },
     iconCircleBtnActive: {
         borderColor: colors.primary[500],
-        backgroundColor: 'rgba(2, 132, 199, 0.1)',
+        backgroundColor: 'rgba(2, 132, 199, 0.08)',
     },
     brandPill: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.background.surface,
         borderWidth: 1,
-        borderColor: 'rgba(15, 23, 42, 0.12)',
-        paddingHorizontal: spacing.md,
-        paddingVertical: 6,
+        borderColor: colors.slate[200],
+        paddingHorizontal: spacing.lg,
+        paddingVertical: 7,
         borderRadius: borderRadius.full,
         ...shadows.subtle,
     },
@@ -511,22 +626,29 @@ const styles = StyleSheet.create({
         fontSize: typography.fontSize.xs,
         fontWeight: '800',
         color: colors.text.primary,
-        letterSpacing: 1,
+        letterSpacing: 1.2,
     },
+    rightNavCluster: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.xs + 2,
+    },
+
+    // 2. Sub Context Pills
     contextBar: {
         flexDirection: 'row',
-        paddingHorizontal: spacing.md,
-        paddingVertical: 4,
+        paddingHorizontal: spacing.lg,
+        paddingVertical: spacing.xs,
         gap: spacing.sm,
     },
     contextPill: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.background.surface,
         borderWidth: 1,
-        borderColor: 'rgba(15, 23, 42, 0.1)',
+        borderColor: colors.slate[200],
         borderRadius: borderRadius.full,
-        paddingVertical: 5,
+        paddingVertical: 6,
         paddingHorizontal: spacing.md,
         gap: 6,
         ...shadows.subtle,
@@ -538,6 +660,7 @@ const styles = StyleSheet.create({
     },
     contextPillDivider: {
         color: colors.slate[300],
+        fontSize: typography.fontSize.xs,
     },
     contextPillSub: {
         fontSize: typography.fontSize.xs,
@@ -550,7 +673,7 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: 'rgba(2, 132, 199, 0.25)',
         borderRadius: borderRadius.full,
-        paddingVertical: 5,
+        paddingVertical: 6,
         paddingHorizontal: spacing.md,
         gap: 5,
     },
@@ -559,113 +682,94 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         color: colors.primary[600],
     },
-    modelDropdownCard: {
-        backgroundColor: '#FFFFFF',
-        marginHorizontal: spacing.md,
-        borderRadius: borderRadius.xl,
-        padding: spacing.md,
-        borderWidth: 1,
-        borderColor: 'rgba(15, 23, 42, 0.1)',
-        ...shadows.lg,
-        position: 'absolute',
-        top: 90,
-        left: 0,
-        right: 0,
-        zIndex: 100,
-    },
-    dropdownHeader: {
-        fontSize: typography.fontSize.xs,
-        fontWeight: '700',
-        color: colors.text.muted,
-        textTransform: 'uppercase',
-        marginBottom: spacing.sm,
-    },
-    dropdownItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingVertical: spacing.sm,
-        paddingHorizontal: spacing.sm,
-        borderRadius: borderRadius.md,
-        marginBottom: 4,
-    },
-    dropdownItemSelected: {
-        backgroundColor: 'rgba(2, 132, 199, 0.08)',
-    },
-    dropdownName: {
-        fontSize: typography.fontSize.sm,
-        fontWeight: '600',
-        color: colors.text.primary,
-    },
-    dropdownNameSelected: {
-        color: colors.primary[600],
-        fontWeight: '700',
-    },
-    dropdownDesc: {
-        fontSize: 11,
-        color: colors.text.muted,
-        marginTop: 2,
-    },
+
+    // 3. Scroll Area
     scrollArea: {
         flex: 1,
     },
     scrollContent: {
-        paddingHorizontal: spacing.md,
-        paddingTop: spacing.md,
+        paddingHorizontal: spacing.lg,
+        paddingTop: spacing.xs,
         paddingBottom: spacing['4xl'],
     },
-    heroSection: {
-        alignItems: 'center',
-        marginTop: spacing.md,
-        marginBottom: spacing.xl,
+    heroScrollContent: {
+        justifyContent: 'center',
+        paddingTop: spacing.md,
     },
-    meshOrb: {
-        width: 72,
-        height: 72,
-        borderRadius: 36,
-        backgroundColor: '#FFFFFF',
-        borderWidth: 1,
-        borderColor: 'rgba(15, 23, 42, 0.1)',
+
+    // Hero Section
+    heroWrapper: {
+        alignItems: 'center',
+        width: '100%',
+    },
+    heroOrbContainer: {
+        width: 80,
+        height: 80,
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: spacing.md,
-        ...shadows.md,
     },
-    heroGreeting: {
+    heroOrbGlow: {
+        position: 'absolute',
+        width: 90,
+        height: 90,
+        borderRadius: 45,
+        backgroundColor: 'rgba(2, 132, 199, 0.08)',
+    },
+    heroOrbCircle: {
+        width: 72,
+        height: 72,
+        borderRadius: 36,
+        backgroundColor: colors.background.surface,
+        borderWidth: 1,
+        borderColor: colors.slate[200],
+        alignItems: 'center',
+        justifyContent: 'center',
+        ...shadows.card,
+    },
+    heroTitle: {
         fontSize: typography.fontSize['3xl'],
         fontWeight: '800',
         color: colors.text.primary,
-        letterSpacing: -0.8,
+        letterSpacing: -0.6,
         textAlign: 'center',
+        lineHeight: 34,
         marginBottom: spacing.xl,
     },
-    heroCardInput: {
+
+    // Floating Hero Card
+    heroCard: {
         width: '100%',
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.background.surface,
         borderRadius: borderRadius['2xl'],
         padding: spacing.md,
         borderWidth: 1,
-        borderColor: 'rgba(15, 23, 42, 0.08)',
-        ...shadows.md,
+        borderColor: colors.slate[200],
+        ...shadows.card,
         marginBottom: spacing.xl,
     },
     heroTextInput: {
         fontSize: typography.fontSize.sm,
         color: colors.text.primary,
-        minHeight: 50,
+        minHeight: 52,
         textAlignVertical: 'top',
         lineHeight: 20,
     },
-    heroCardActions: {
+    heroCardBottomRow: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginTop: spacing.sm,
-        paddingTop: spacing.sm,
+        marginTop: spacing.xs,
+        paddingTop: spacing.xs,
         borderTopWidth: 1,
         borderTopColor: colors.slate[100],
     },
-    actionPillBtn: {
+    heroLeftActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    microActionBtn: {
         width: 32,
         height: 32,
         borderRadius: 16,
@@ -675,7 +779,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    heroModelPill: {
+    heroModelDropdownPill: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: colors.slate[50],
@@ -686,56 +790,67 @@ const styles = StyleSheet.create({
         borderRadius: borderRadius.full,
         gap: 4,
     },
-    heroModelText: {
+    heroModelDropdownText: {
         fontSize: 11,
         fontWeight: '700',
         color: colors.text.primary,
-        maxWidth: 110,
+        maxWidth: 90,
     },
-    sendOrbBtn: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
+    heroSendOrb: {
+        width: 34,
+        height: 34,
+        borderRadius: 17,
         backgroundColor: colors.text.primary,
         alignItems: 'center',
         justifyContent: 'center',
+        ...shadows.subtle,
     },
-    sendOrbDisabled: {
+    heroSendOrbDisabled: {
         backgroundColor: colors.slate[300],
     },
-    actionTagsWrap: {
+
+    // Colorful Action Chips
+    chipsContainer: {
         flexDirection: 'row',
         flexWrap: 'wrap',
         justifyContent: 'center',
         gap: spacing.sm,
+        maxWidth: 340,
     },
-    actionTag: {
+    actionChip: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingVertical: 8,
         paddingHorizontal: spacing.md,
         borderRadius: borderRadius.full,
+        borderWidth: 1,
         gap: 6,
         ...shadows.subtle,
     },
-    actionTagText: {
+    chipText: {
         fontSize: typography.fontSize.xs,
         fontWeight: '700',
         color: '#FFFFFF',
     },
-    userMessageRow: {
-        alignItems: 'flex-end',
-        marginVertical: spacing.xs,
+
+    // Active Chat Stream
+    chatFlowContainer: {
+        paddingTop: spacing.xs,
     },
-    userPillBubble: {
+    userBubbleRow: {
+        alignItems: 'flex-end',
+        marginVertical: spacing.xs + 2,
+    },
+    userBubble: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: colors.primary[500],
-        paddingVertical: 8,
-        paddingHorizontal: spacing.md,
+        paddingVertical: 9,
+        paddingHorizontal: spacing.lg,
         borderRadius: borderRadius.full,
+        borderBottomRightRadius: 6,
         maxWidth: '85%',
-        ...shadows.sm,
+        ...shadows.subtle,
     },
     userBubbleText: {
         fontSize: typography.fontSize.sm,
@@ -743,31 +858,32 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         marginRight: 6,
     },
-    userMsgIcon: {
+    userIcon: {
         marginLeft: 2,
     },
-    assistantCardWrapper: {
-        marginVertical: spacing.sm,
+    assistantCardRow: {
+        marginVertical: spacing.xs + 2,
     },
     assistantCard: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.background.surface,
         borderRadius: borderRadius.xl,
+        borderTopLeftRadius: 6,
         padding: spacing.md,
         borderWidth: 1,
-        borderColor: 'rgba(15, 23, 42, 0.08)',
-        ...shadows.subtle,
+        borderColor: colors.slate[200],
+        ...shadows.card,
     },
-    thinkingHeader: {
+    reasoningHeader: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: colors.slate[50],
         paddingVertical: 6,
-        paddingHorizontal: spacing.sm,
+        paddingHorizontal: spacing.sm + 2,
         borderRadius: borderRadius.md,
         marginBottom: spacing.sm,
         gap: 6,
     },
-    thinkingIconBox: {
+    reasoningIconBadge: {
         width: 20,
         height: 20,
         borderRadius: 10,
@@ -775,26 +891,26 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    thinkingTitle: {
+    reasoningTitle: {
         fontSize: typography.fontSize.xs,
         fontWeight: '700',
         color: colors.text.primary,
         flex: 1,
     },
-    thinkingViewText: {
+    reasoningViewText: {
         fontSize: 10,
         fontWeight: '700',
         color: colors.primary[600],
     },
-    expandedStepsWrap: {
+    reasoningExpandedBox: {
         marginBottom: spacing.sm,
     },
-    assistantBodyText: {
+    assistantText: {
         fontSize: typography.fontSize.sm,
         color: colors.text.primary,
         lineHeight: 22,
     },
-    cardFooterRow: {
+    assistantFooter: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
@@ -803,40 +919,42 @@ const styles = StyleSheet.create({
         borderTopWidth: 1,
         borderTopColor: colors.slate[100],
     },
-    footerModelName: {
+    footerModelText: {
         fontSize: 11,
         color: colors.text.muted,
         fontWeight: '600',
     },
-    latencyWrap: {
+    footerLatencyWrap: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 3,
     },
-    latencyNumber: {
+    footerLatencyText: {
         fontSize: 10,
         color: colors.standby[600],
         fontWeight: '700',
     },
-    liveProcessingBox: {
+    liveStepBox: {
         marginVertical: spacing.sm,
     },
-    bottomBarWrapper: {
-        backgroundColor: '#FFFFFF',
-        paddingHorizontal: spacing.md,
-        paddingTop: spacing.xs,
-        paddingBottom: Platform.OS === 'ios' ? spacing.md : spacing.xs,
+
+    // 4. Docked Bottom Input Bar
+    dockedBottomBar: {
+        backgroundColor: colors.background.surface,
+        paddingHorizontal: spacing.lg,
+        paddingTop: spacing.xs + 2,
+        paddingBottom: Platform.OS === 'ios' ? spacing.md : spacing.xs + 2,
         borderTopWidth: 1,
-        borderTopColor: 'rgba(15, 23, 42, 0.08)',
+        borderTopColor: colors.slate[200],
         alignItems: 'center',
     },
-    bottomInputRow: {
+    dockedInputRow: {
         flexDirection: 'row',
         alignItems: 'center',
         width: '100%',
-        gap: spacing.xs,
+        gap: spacing.xs + 2,
     },
-    bottomIconBtn: {
+    dockedIconBtn: {
         width: 36,
         height: 36,
         borderRadius: 18,
@@ -846,11 +964,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    bottomIconBtnListening: {
-        borderColor: colors.accent[500],
-        backgroundColor: 'rgba(13, 148, 136, 0.1)',
-    },
-    bottomInputCapsule: {
+    dockedInputCapsule: {
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
@@ -861,22 +975,22 @@ const styles = StyleSheet.create({
         borderColor: colors.slate[200],
         height: 40,
     },
-    bottomTextInput: {
+    dockedTextInput: {
         flex: 1,
         fontSize: typography.fontSize.sm,
         color: colors.text.primary,
         marginLeft: spacing.xs,
     },
-    bottomSendOrb: {
+    dockedSendOrb: {
         width: 36,
         height: 36,
         borderRadius: 18,
         backgroundColor: colors.text.primary,
         alignItems: 'center',
         justifyContent: 'center',
-        ...shadows.sm,
+        ...shadows.subtle,
     },
-    bottomSendOrbDisabled: {
+    dockedSendOrbDisabled: {
         backgroundColor: colors.slate[300],
     },
     floatingBottomModelPill: {
@@ -894,6 +1008,79 @@ const styles = StyleSheet.create({
         fontWeight: '800',
         color: colors.text.primary,
         letterSpacing: 0.5,
+    },
+
+    // Modals
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: colors.background.overlay,
+        justifyContent: 'flex-end',
+    },
+    modelModalCard: {
+        backgroundColor: colors.background.surface,
+        borderTopLeftRadius: borderRadius['2xl'],
+        borderTopRightRadius: borderRadius['2xl'],
+        padding: spacing.lg,
+    },
+    modelModalHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: spacing.md,
+        paddingBottom: spacing.sm,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.slate[100],
+    },
+    modelModalTitle: {
+        fontSize: typography.fontSize.lg,
+        fontWeight: '800',
+        color: colors.text.primary,
+    },
+    modelOptionRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: spacing.sm + 2,
+        paddingHorizontal: spacing.sm,
+        borderRadius: borderRadius.lg,
+        marginBottom: 4,
+    },
+    modelOptionRowActive: {
+        backgroundColor: 'rgba(2, 132, 199, 0.08)',
+    },
+    modelOptionLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    modelOptionName: {
+        fontSize: typography.fontSize.sm,
+        fontWeight: '700',
+        color: colors.text.primary,
+    },
+    modelOptionNameActive: {
+        color: colors.primary[600],
+    },
+    modelOptionSub: {
+        fontSize: 11,
+        color: colors.text.muted,
+        marginTop: 1,
+    },
+    skillRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: spacing.md,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.slate[100],
+    },
+    skillTitle: {
+        fontSize: typography.fontSize.sm,
+        fontWeight: '700',
+        color: colors.text.primary,
+    },
+    skillDesc: {
+        fontSize: 11,
+        color: colors.text.muted,
+        marginTop: 2,
     },
 });
 

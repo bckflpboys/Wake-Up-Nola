@@ -1,6 +1,6 @@
 /**
  * Connectors Screen - Device Apps & API Integration Hub
- * Scans, connects, and indexes all apps, APIs, files, and local endpoints on the device
+ * Progressive disclosure with categorized tabs, clean cards, and back navigation
  */
 
 import React, { useState } from 'react';
@@ -25,13 +25,21 @@ import { Button } from '../components/atoms/Button';
 import { colors, spacing, typography, borderRadius, shadows } from '../theme';
 
 interface ConnectorsScreenProps {
+    onNavigateBack?: () => void;
     onNavigateChat?: () => void;
 }
 
-export const ConnectorsScreen: React.FC<ConnectorsScreenProps> = ({ onNavigateChat }) => {
+type FilterCategory = 'all' | 'device_app' | 'local_data' | 'ai_endpoint';
+
+export const ConnectorsScreen: React.FC<ConnectorsScreenProps> = ({
+    onNavigateBack,
+    onNavigateChat,
+}) => {
     const [connectors, setConnectors] = useState<DeviceConnector[]>(connectorService.getConnectors());
+    const [selectedCategory, setSelectedCategory] = useState<FilterCategory>('all');
     const [isScanning, setIsScanning] = useState(false);
     const [scanMessage, setScanMessage] = useState('');
+    const [selectedConnector, setSelectedConnector] = useState<DeviceConnector | null>(null);
     const [isAddModalVisible, setIsAddModalVisible] = useState(false);
 
     // Form fields for new custom API
@@ -54,7 +62,11 @@ export const ConnectorsScreen: React.FC<ConnectorsScreenProps> = ({ onNavigateCh
 
     const handleToggle = (id: string) => {
         connectorService.toggleConnector(id);
-        setConnectors([...connectorService.getConnectors()]);
+        const updated = connectorService.getConnectors();
+        setConnectors([...updated]);
+        if (selectedConnector && selectedConnector.id === id) {
+            setSelectedConnector(updated.find(c => c.id === id) || null);
+        }
     };
 
     const handleAddCustomApi = () => {
@@ -71,39 +83,54 @@ export const ConnectorsScreen: React.FC<ConnectorsScreenProps> = ({ onNavigateCh
         setIsAddModalVisible(false);
     };
 
+    const filteredConnectors = connectors.filter(c => {
+        if (selectedCategory === 'all') return true;
+        if (selectedCategory === 'ai_endpoint') return c.category === 'ai_endpoint' || c.category === 'cloud_api';
+        return c.category === selectedCategory;
+    });
+
     const connectedCount = connectors.filter(c => c.status === 'connected').length;
 
     return (
         <SafeAreaView style={styles.safeArea}>
             <View style={styles.container}>
-                {/* Header */}
+                {/* 1. Header with Back Button */}
                 <View style={styles.header}>
-                    <View>
+                    <TouchableOpacity
+                        onPress={onNavigateBack}
+                        style={styles.backBtn}
+                        activeOpacity={0.7}
+                    >
+                        <Ionicons name="chevron-back" size={18} color={colors.text.primary} />
+                    </TouchableOpacity>
+
+                    <View style={styles.headerTitleWrap}>
                         <Text style={styles.headerTitle}>Connectors & APIs</Text>
                         <Text style={styles.headerSubtitle}>
-                            {connectedCount} of {connectors.length} device systems connected to Nola
+                            {connectedCount} of {connectors.length} systems active
                         </Text>
                     </View>
+
                     <TouchableOpacity
                         onPress={() => setIsAddModalVisible(true)}
                         style={styles.addApiBtn}
                         activeOpacity={0.8}
                     >
-                        <Ionicons name="add" size={18} color="#FFFFFF" />
+                        <Ionicons name="add" size={16} color="#FFFFFF" />
                         <Text style={styles.addApiText}>Add API</Text>
                     </TouchableOpacity>
                 </View>
 
-                {/* Deep Device Scan Action Card */}
+                {/* 2. Deep Device Scan Radar Card */}
                 <View style={styles.scanBanner}>
                     <View style={styles.scanContentWrap}>
                         <View style={styles.scanIconBox}>
-                            <Ionicons name="scan-circle" size={32} color={colors.primary[500]} />
+                            <Ionicons name="scan-circle" size={30} color={colors.primary[500]} />
                         </View>
                         <View style={styles.scanTextWrap}>
                             <Text style={styles.scanTitle}>Deep Device Scanner</Text>
                             <Text style={styles.scanDesc}>
-                                Scan and grant Nola access to your calendar, shared vault, contacts, and local WiFi LAN.
+                                Scan local storage, calendar, contacts, and WiFi LAN endpoints.
                             </Text>
                         </View>
                     </View>
@@ -117,10 +144,10 @@ export const ConnectorsScreen: React.FC<ConnectorsScreenProps> = ({ onNavigateCh
                         {isScanning ? (
                             <ActivityIndicator size="small" color="#FFFFFF" />
                         ) : (
-                            <Ionicons name="sparkles" size={16} color="#FFFFFF" />
+                            <Ionicons name="sparkles" size={15} color="#FFFFFF" />
                         )}
                         <Text style={styles.scanBtnText}>
-                            {isScanning ? 'Scanning Device...' : 'Scan & Sync Everything'}
+                            {isScanning ? 'Scanning Everything...' : 'Scan & Sync Device'}
                         </Text>
                     </TouchableOpacity>
 
@@ -129,105 +156,158 @@ export const ConnectorsScreen: React.FC<ConnectorsScreenProps> = ({ onNavigateCh
                     ) : null}
                 </View>
 
-                {/* Connectors List */}
+                {/* 3. Progressive Disclosure Filter Pills */}
+                <View style={styles.filterPillsRow}>
+                    <TouchableOpacity
+                        onPress={() => setSelectedCategory('all')}
+                        style={[styles.filterPill, selectedCategory === 'all' && styles.filterPillActive]}
+                    >
+                        <Text style={[styles.filterText, selectedCategory === 'all' && styles.filterTextActive]}>
+                            All ({connectors.length})
+                        </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        onPress={() => setSelectedCategory('device_app')}
+                        style={[styles.filterPill, selectedCategory === 'device_app' && styles.filterPillActive]}
+                    >
+                        <Text style={[styles.filterText, selectedCategory === 'device_app' && styles.filterTextActive]}>
+                            Device Apps
+                        </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        onPress={() => setSelectedCategory('local_data')}
+                        style={[styles.filterPill, selectedCategory === 'local_data' && styles.filterPillActive]}
+                    >
+                        <Text style={[styles.filterText, selectedCategory === 'local_data' && styles.filterTextActive]}>
+                            Vault & Storage
+                        </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        onPress={() => setSelectedCategory('ai_endpoint')}
+                        style={[styles.filterPill, selectedCategory === 'ai_endpoint' && styles.filterPillActive]}
+                    >
+                        <Text style={[styles.filterText, selectedCategory === 'ai_endpoint' && styles.filterTextActive]}>
+                            AI & APIs
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+
+                {/* 4. Connectors List */}
                 <ScrollView
                     style={styles.scrollList}
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={false}
                 >
-                    {/* Category: Local Data & Vault */}
-                    <Text style={styles.categoryTitle}>Local Device & Storage</Text>
-                    {connectors
-                        .filter(c => c.category === 'local_data' || c.category === 'device_app')
-                        .map(conn => {
-                            const isConnected = conn.status === 'connected';
-                            return (
-                                <Card key={conn.id} variant="default" style={styles.connectorCard}>
-                                    <View style={styles.cardHeader}>
-                                        <View style={[styles.iconWrap, { backgroundColor: isConnected ? 'rgba(2, 132, 199, 0.1)' : colors.slate[100] }]}>
-                                            <Ionicons
-                                                name={conn.icon as any}
-                                                size={22}
-                                                color={isConnected ? colors.primary[600] : colors.slate[400]}
+                    {filteredConnectors.map(conn => {
+                        const isConnected = conn.status === 'connected';
+
+                        return (
+                            <Card
+                                key={conn.id}
+                                variant="default"
+                                style={styles.connectorCard}
+                                onPress={() => setSelectedConnector(conn)}
+                            >
+                                <View style={styles.cardHeader}>
+                                    <View style={[styles.iconWrap, { backgroundColor: isConnected ? 'rgba(2, 132, 199, 0.08)' : colors.slate[100] }]}>
+                                        <Ionicons
+                                            name={conn.icon as any}
+                                            size={20}
+                                            color={isConnected ? colors.primary[600] : colors.slate[400]}
+                                        />
+                                    </View>
+
+                                    <View style={styles.cardInfo}>
+                                        <View style={styles.titleRow}>
+                                            <Text style={styles.connName}>{conn.name}</Text>
+                                            <Badge
+                                                label={isConnected ? 'CONNECTED' : 'DISCONNECTED'}
+                                                variant={isConnected ? 'success' : 'default'}
+                                                size="sm"
                                             />
                                         </View>
-
-                                        <View style={styles.cardInfo}>
-                                            <View style={styles.titleRow}>
-                                                <Text style={styles.connName}>{conn.name}</Text>
-                                                <Badge
-                                                    label={isConnected ? 'CONNECTED' : 'DISCONNECTED'}
-                                                    variant={isConnected ? 'success' : 'default'}
-                                                    size="sm"
-                                                />
-                                            </View>
-                                            <Text style={styles.connDesc}>{conn.description}</Text>
-                                            <View style={styles.metaRow}>
-                                                <Text style={styles.accessScope}>🔒 {conn.accessScope}</Text>
-                                                {conn.lastSynced && (
-                                                    <Text style={styles.lastSynced}>• {conn.lastSynced}</Text>
-                                                )}
-                                            </View>
-                                        </View>
-
-                                        <TouchableOpacity
-                                            onPress={() => handleToggle(conn.id)}
-                                            style={[styles.toggleSwitch, isConnected ? styles.toggleOn : styles.toggleOff]}
-                                            activeOpacity={0.8}
-                                        >
-                                            <View style={[styles.toggleKnob, isConnected ? styles.knobOn : styles.knobOff]} />
-                                        </TouchableOpacity>
+                                        <Text style={styles.connDesc} numberOfLines={1}>{conn.description}</Text>
+                                        <Text style={styles.accessScope}>🔒 {conn.accessScope}</Text>
                                     </View>
-                                </Card>
-                            );
-                        })}
 
-                    {/* Category: AI Endpoints & APIs */}
-                    <Text style={styles.categoryTitle}>AI Models & External APIs</Text>
-                    {connectors
-                        .filter(c => c.category === 'ai_endpoint' || c.category === 'cloud_api')
-                        .map(conn => {
-                            const isConnected = conn.status === 'connected';
-                            return (
-                                <Card key={conn.id} variant="default" style={styles.connectorCard}>
-                                    <View style={styles.cardHeader}>
-                                        <View style={[styles.iconWrap, { backgroundColor: isConnected ? 'rgba(13, 148, 136, 0.1)' : colors.slate[100] }]}>
-                                            <Ionicons
-                                                name={conn.icon as any}
-                                                size={22}
-                                                color={isConnected ? colors.accent[600] : colors.slate[400]}
-                                            />
-                                        </View>
-
-                                        <View style={styles.cardInfo}>
-                                            <View style={styles.titleRow}>
-                                                <Text style={styles.connName}>{conn.name}</Text>
-                                                <Badge
-                                                    label={isConnected ? 'ACTIVE' : 'OFFLINE'}
-                                                    variant={isConnected ? 'accent' : 'default'}
-                                                    size="sm"
-                                                />
-                                            </View>
-                                            <Text style={styles.connDesc}>{conn.description}</Text>
-                                            <View style={styles.metaRow}>
-                                                <Text style={styles.accessScope}>⚡ {conn.accessScope}</Text>
-                                            </View>
-                                        </View>
-
-                                        <TouchableOpacity
-                                            onPress={() => handleToggle(conn.id)}
-                                            style={[styles.toggleSwitch, isConnected ? styles.toggleOn : styles.toggleOff]}
-                                            activeOpacity={0.8}
-                                        >
-                                            <View style={[styles.toggleKnob, isConnected ? styles.knobOn : styles.knobOff]} />
-                                        </TouchableOpacity>
-                                    </View>
-                                </Card>
-                            );
-                        })}
+                                    <TouchableOpacity
+                                        onPress={() => handleToggle(conn.id)}
+                                        style={[styles.toggleSwitch, isConnected ? styles.toggleOn : styles.toggleOff]}
+                                        activeOpacity={0.8}
+                                    >
+                                        <View style={[styles.toggleKnob, isConnected ? styles.knobOn : styles.knobOff]} />
+                                    </TouchableOpacity>
+                                </View>
+                            </Card>
+                        );
+                    })}
                 </ScrollView>
 
-                {/* Add Custom API Modal */}
+                {/* 5. Detailed Connector Inspector Modal */}
+                {selectedConnector && (
+                    <Modal
+                        visible={!!selectedConnector}
+                        animationType="slide"
+                        transparent={true}
+                        onRequestClose={() => setSelectedConnector(null)}
+                    >
+                        <View style={styles.modalOverlay}>
+                            <View style={styles.modalContent}>
+                                <View style={styles.modalHeader}>
+                                    <View style={styles.modalTitleRow}>
+                                        <View style={[styles.iconWrap, { backgroundColor: 'rgba(2, 132, 199, 0.08)' }]}>
+                                            <Ionicons
+                                                name={selectedConnector.icon as any}
+                                                size={22}
+                                                color={colors.primary[600]}
+                                            />
+                                        </View>
+                                        <View>
+                                            <Text style={styles.modalTitle}>{selectedConnector.name}</Text>
+                                            <Text style={styles.modalSubtitle}>{selectedConnector.accessScope}</Text>
+                                        </View>
+                                    </View>
+                                    <TouchableOpacity
+                                        onPress={() => setSelectedConnector(null)}
+                                        style={styles.closeBtn}
+                                    >
+                                        <Ionicons name="close" size={22} color={colors.slate[600]} />
+                                    </TouchableOpacity>
+                                </View>
+
+                                <ScrollView style={styles.modalBody}>
+                                    <Text style={styles.detailSectionLabel}>Description</Text>
+                                    <Text style={styles.detailText}>{selectedConnector.description}</Text>
+
+                                    <Text style={styles.detailSectionLabel}>Access Scope & Privacy</Text>
+                                    <View style={styles.privacyBox}>
+                                        <Ionicons name="shield-checkmark-outline" size={16} color={colors.success.main} />
+                                        <Text style={styles.privacyText}>
+                                            Private on-device access only. No sensitive data is transferred to external third-party cloud servers.
+                                        </Text>
+                                    </View>
+
+                                    {selectedConnector.lastSynced && (
+                                        <Text style={styles.lastSyncText}>Status: {selectedConnector.lastSynced}</Text>
+                                    )}
+                                </ScrollView>
+
+                                <View style={styles.modalFooter}>
+                                    <Button
+                                        label={selectedConnector.status === 'connected' ? 'Disconnect System' : 'Connect & Enable'}
+                                        variant={selectedConnector.status === 'connected' ? 'outline' : 'primary'}
+                                        onPress={() => handleToggle(selectedConnector.id)}
+                                    />
+                                </View>
+                            </View>
+                        </View>
+                    </Modal>
+                )}
+
+                {/* 6. Add Custom API Modal */}
                 <Modal
                     visible={isAddModalVisible}
                     animationType="slide"
@@ -242,7 +322,7 @@ export const ConnectorsScreen: React.FC<ConnectorsScreenProps> = ({ onNavigateCh
                                     onPress={() => setIsAddModalVisible(false)}
                                     style={styles.closeBtn}
                                 >
-                                    <Ionicons name="close" size={24} color={colors.slate[600]} />
+                                    <Ionicons name="close" size={22} color={colors.slate[600]} />
                                 </TouchableOpacity>
                             </View>
 
@@ -286,8 +366,8 @@ export const ConnectorsScreen: React.FC<ConnectorsScreenProps> = ({ onNavigateCh
 const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
-        backgroundColor: colors.background.primary,
-        paddingTop: Platform.OS === 'android' ? 30 : 0,
+        backgroundColor: colors.background.canvas,
+        paddingTop: Platform.OS === 'android' ? 32 : 0,
     },
     container: {
         flex: 1,
@@ -297,18 +377,33 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingHorizontal: spacing.lg,
-        paddingVertical: spacing.md,
+        paddingVertical: spacing.xs + 2,
+    },
+    backBtn: {
+        width: 38,
+        height: 38,
+        borderRadius: 19,
+        backgroundColor: colors.background.surface,
+        borderWidth: 1,
+        borderColor: colors.slate[200],
+        alignItems: 'center',
+        justifyContent: 'center',
+        ...shadows.subtle,
+    },
+    headerTitleWrap: {
+        flex: 1,
+        marginLeft: spacing.md,
     },
     headerTitle: {
-        fontSize: typography.fontSize['2xl'],
+        fontSize: typography.fontSize.lg,
         fontWeight: '800',
         color: colors.text.primary,
-        letterSpacing: -0.5,
+        letterSpacing: -0.4,
     },
     headerSubtitle: {
         fontSize: typography.fontSize.xs,
         color: colors.text.muted,
-        marginTop: 2,
+        marginTop: 1,
     },
     addApiBtn: {
         flexDirection: 'row',
@@ -317,7 +412,7 @@ const styles = StyleSheet.create({
         paddingVertical: 7,
         paddingHorizontal: spacing.md,
         borderRadius: borderRadius.full,
-        ...shadows.sm,
+        ...shadows.subtle,
     },
     addApiText: {
         fontSize: typography.fontSize.xs,
@@ -327,33 +422,33 @@ const styles = StyleSheet.create({
     },
     scanBanner: {
         marginHorizontal: spacing.lg,
-        marginBottom: spacing.md,
-        backgroundColor: '#FFFFFF',
+        marginVertical: spacing.xs + 2,
+        backgroundColor: colors.background.surface,
         borderRadius: borderRadius.xl,
         padding: spacing.md,
         borderWidth: 1,
-        borderColor: 'rgba(2, 132, 199, 0.15)',
-        ...shadows.sm,
+        borderColor: colors.slate[200],
+        ...shadows.card,
     },
     scanContentWrap: {
         flexDirection: 'row',
-        alignItems: 'flex-start',
-        marginBottom: spacing.md,
+        alignItems: 'center',
+        marginBottom: spacing.sm,
     },
     scanIconBox: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        backgroundColor: 'rgba(2, 132, 199, 0.1)',
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: 'rgba(2, 132, 199, 0.08)',
         alignItems: 'center',
         justifyContent: 'center',
-        marginRight: spacing.md,
+        marginRight: spacing.sm,
     },
     scanTextWrap: {
         flex: 1,
     },
     scanTitle: {
-        fontSize: typography.fontSize.base,
+        fontSize: typography.fontSize.sm + 1,
         fontWeight: '700',
         color: colors.text.primary,
     },
@@ -368,7 +463,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: colors.primary[500],
-        paddingVertical: spacing.sm + 2,
+        paddingVertical: spacing.sm + 1,
         borderRadius: borderRadius.lg,
         ...shadows.glowBlue,
     },
@@ -376,7 +471,7 @@ const styles = StyleSheet.create({
         backgroundColor: colors.slate[400],
     },
     scanBtnText: {
-        fontSize: typography.fontSize.sm,
+        fontSize: typography.fontSize.xs + 1,
         fontWeight: '700',
         color: '#FFFFFF',
         marginLeft: 6,
@@ -388,40 +483,59 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         marginTop: spacing.xs,
     },
+    filterPillsRow: {
+        flexDirection: 'row',
+        paddingHorizontal: spacing.lg,
+        paddingVertical: spacing.xs,
+        gap: 6,
+    },
+    filterPill: {
+        paddingVertical: 5,
+        paddingHorizontal: spacing.sm + 2,
+        borderRadius: borderRadius.full,
+        backgroundColor: colors.background.surface,
+        borderWidth: 1,
+        borderColor: colors.slate[200],
+    },
+    filterPillActive: {
+        backgroundColor: colors.text.primary,
+        borderColor: colors.text.primary,
+    },
+    filterText: {
+        fontSize: 11,
+        fontWeight: '600',
+        color: colors.text.secondary,
+    },
+    filterTextActive: {
+        color: '#FFFFFF',
+        fontWeight: '700',
+    },
     scrollList: {
         flex: 1,
     },
     scrollContent: {
         paddingHorizontal: spacing.lg,
+        paddingTop: spacing.xs,
         paddingBottom: spacing['4xl'],
     },
-    categoryTitle: {
-        fontSize: typography.fontSize.xs,
-        fontWeight: '700',
-        color: colors.text.muted,
-        letterSpacing: 0.8,
-        textTransform: 'uppercase',
-        marginTop: spacing.md,
-        marginBottom: spacing.sm,
-    },
     connectorCard: {
-        marginBottom: spacing.sm,
-        backgroundColor: '#FFFFFF',
+        marginBottom: spacing.xs + 4,
+        backgroundColor: colors.background.surface,
         borderWidth: 1,
-        borderColor: 'rgba(15, 23, 42, 0.06)',
+        borderColor: colors.slate[200],
         ...shadows.subtle,
     },
     cardHeader: {
         flexDirection: 'row',
-        alignItems: 'flex-start',
+        alignItems: 'center',
     },
     iconWrap: {
-        width: 42,
-        height: 42,
+        width: 38,
+        height: 38,
         borderRadius: borderRadius.md,
         alignItems: 'center',
         justifyContent: 'center',
-        marginRight: spacing.md,
+        marginRight: spacing.sm,
     },
     cardInfo: {
         flex: 1,
@@ -440,31 +554,20 @@ const styles = StyleSheet.create({
     connDesc: {
         fontSize: typography.fontSize.xs,
         color: colors.text.secondary,
-        marginTop: 2,
-        lineHeight: 16,
-    },
-    metaRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginTop: 6,
+        marginTop: 1,
     },
     accessScope: {
         fontSize: 10,
         color: colors.primary[600],
         fontWeight: '600',
-    },
-    lastSynced: {
-        fontSize: 10,
-        color: colors.text.muted,
-        marginLeft: 4,
+        marginTop: 3,
     },
     toggleSwitch: {
-        width: 44,
-        height: 24,
-        borderRadius: 12,
+        width: 40,
+        height: 22,
+        borderRadius: 11,
         padding: 2,
         marginLeft: spacing.sm,
-        marginTop: 2,
     },
     toggleOn: {
         backgroundColor: colors.success.main,
@@ -473,9 +576,9 @@ const styles = StyleSheet.create({
         backgroundColor: colors.slate[300],
     },
     toggleKnob: {
-        width: 20,
-        height: 20,
-        borderRadius: 10,
+        width: 18,
+        height: 18,
+        borderRadius: 9,
         backgroundColor: '#FFFFFF',
     },
     knobOn: {
@@ -490,7 +593,7 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-end',
     },
     modalContent: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.background.surface,
         borderTopLeftRadius: borderRadius['2xl'],
         borderTopRightRadius: borderRadius['2xl'],
         maxHeight: '85%',
@@ -505,10 +608,21 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: colors.slate[100],
     },
+    modalTitleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+    },
     modalTitle: {
-        fontSize: typography.fontSize.lg,
-        fontWeight: '700',
+        fontSize: typography.fontSize.md,
+        fontWeight: '800',
         color: colors.text.primary,
+    },
+    modalSubtitle: {
+        fontSize: 11,
+        color: colors.primary[600],
+        fontWeight: '600',
+        marginTop: 1,
     },
     closeBtn: {
         padding: spacing.xs,
@@ -516,6 +630,41 @@ const styles = StyleSheet.create({
     modalBody: {
         maxHeight: 340,
         marginVertical: spacing.sm,
+    },
+    detailSectionLabel: {
+        fontSize: typography.fontSize.xs,
+        fontWeight: '700',
+        color: colors.text.muted,
+        textTransform: 'uppercase',
+        marginTop: spacing.sm,
+        marginBottom: 4,
+    },
+    detailText: {
+        fontSize: typography.fontSize.sm,
+        color: colors.text.primary,
+        lineHeight: 20,
+    },
+    privacyBox: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        backgroundColor: colors.slate[50],
+        padding: spacing.sm + 2,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.slate[200],
+        marginTop: spacing.xs,
+        gap: spacing.xs,
+    },
+    privacyText: {
+        fontSize: typography.fontSize.xs,
+        color: colors.text.secondary,
+        flex: 1,
+        lineHeight: 16,
+    },
+    lastSyncText: {
+        fontSize: 11,
+        color: colors.text.muted,
+        marginTop: spacing.md,
     },
     modalFooter: {
         marginTop: spacing.md,

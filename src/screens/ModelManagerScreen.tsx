@@ -1,6 +1,6 @@
 /**
  * Model Manager Screen - On-Device SLMs, Desktop LAN, and Cloud
- * Configure Google Gemma 4, Alibaba Qwen 3.5, Phi-4, DeepSeek, and LAN Ollama
+ * Progressive disclosure with filter tags, memory meters, and back navigation
  */
 
 import React, { useState } from 'react';
@@ -22,7 +22,15 @@ import { Input } from '../components/atoms/Input';
 import { Button } from '../components/atoms/Button';
 import { colors, spacing, typography, borderRadius, shadows } from '../theme';
 
-export const ModelManagerScreen: React.FC = () => {
+interface ModelManagerScreenProps {
+    onNavigateBack?: () => void;
+}
+
+type ModelTab = 'all' | 'on-device' | 'lan-desktop' | 'cloud';
+
+export const ModelManagerScreen: React.FC<ModelManagerScreenProps> = ({
+    onNavigateBack,
+}) => {
     const {
         activeModel,
         availableModels,
@@ -33,6 +41,7 @@ export const ModelManagerScreen: React.FC = () => {
         toggleOfflineMode,
     } = useNola();
 
+    const [selectedTab, setSelectedTab] = useState<ModelTab>('all');
     const [isLanModalVisible, setIsLanModalVisible] = useState(false);
     const [endpointInput, setEndpointInput] = useState(lanEndpoint);
 
@@ -46,23 +55,32 @@ export const ModelManagerScreen: React.FC = () => {
         setIsLanModalVisible(false);
     };
 
-    const onDeviceModels = availableModels.filter(m => m.type === 'on-device');
-    const lanModels = availableModels.filter(m => m.type === 'lan-desktop');
-    const cloudModels = availableModels.filter(m => m.type === 'cloud');
+    const filteredModels = availableModels.filter(m => {
+        if (selectedTab === 'all') return true;
+        return m.type === selectedTab;
+    });
 
     return (
         <SafeAreaView style={styles.safeArea}>
             <View style={styles.container}>
-                {/* Header */}
+                {/* 1. Header with Back Button */}
                 <View style={styles.header}>
-                    <View>
+                    <TouchableOpacity
+                        onPress={onNavigateBack}
+                        style={styles.backBtn}
+                        activeOpacity={0.7}
+                    >
+                        <Ionicons name="chevron-back" size={18} color={colors.text.primary} />
+                    </TouchableOpacity>
+
+                    <View style={styles.headerTitleWrap}>
                         <Text style={styles.headerTitle}>AI Model Hub</Text>
                         <Text style={styles.headerSubtitle}>
                             Active: {activeModel.name}
                         </Text>
                     </View>
 
-                    {/* Strict Offline Mode Toggle */}
+                    {/* Strict Offline Toggle */}
                     <TouchableOpacity
                         onPress={toggleOfflineMode}
                         style={[
@@ -72,8 +90,8 @@ export const ModelManagerScreen: React.FC = () => {
                         activeOpacity={0.8}
                     >
                         <Ionicons
-                            name={isOfflineMode ? 'airplane' : 'globe'}
-                            size={14}
+                            name={isOfflineMode ? 'airplane' : 'globe-outline'}
+                            size={13}
                             color={isOfflineMode ? '#FFFFFF' : colors.text.secondary}
                         />
                         <Text
@@ -82,31 +100,68 @@ export const ModelManagerScreen: React.FC = () => {
                                 isOfflineMode && styles.offlineTextActive,
                             ]}
                         >
-                            {isOfflineMode ? 'OFFLINE ONLY' : 'HYBRID'}
+                            {isOfflineMode ? 'OFFLINE' : 'HYBRID'}
                         </Text>
                     </TouchableOpacity>
                 </View>
 
-                {/* Storage Guide Banner */}
+                {/* 2. GGUF Model Directory Banner */}
                 <View style={styles.banner}>
-                    <Ionicons name="folder-outline" size={20} color={colors.primary[600]} />
+                    <Ionicons name="folder-outline" size={18} color={colors.primary[600]} />
                     <View style={styles.bannerTextWrap}>
                         <Text style={styles.bannerTitle}>GGUF Model Directory</Text>
                         <Text style={styles.bannerDesc}>
-                            Place downloaded .gguf models in assets/models/ to activate them on-device.
+                            Drop downloaded .gguf models into assets/models/ to load them locally.
                         </Text>
                     </View>
                 </View>
 
-                {/* Models List */}
+                {/* 3. Filter Tabs */}
+                <View style={styles.filterRow}>
+                    <TouchableOpacity
+                        onPress={() => setSelectedTab('all')}
+                        style={[styles.filterPill, selectedTab === 'all' && styles.filterPillActive]}
+                    >
+                        <Text style={[styles.filterText, selectedTab === 'all' && styles.filterTextActive]}>
+                            All ({availableModels.length})
+                        </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        onPress={() => setSelectedTab('on-device')}
+                        style={[styles.filterPill, selectedTab === 'on-device' && styles.filterPillActive]}
+                    >
+                        <Text style={[styles.filterText, selectedTab === 'on-device' && styles.filterTextActive]}>
+                            On-Device Mobile
+                        </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        onPress={() => setSelectedTab('lan-desktop')}
+                        style={[styles.filterPill, selectedTab === 'lan-desktop' && styles.filterPillActive]}
+                    >
+                        <Text style={[styles.filterText, selectedTab === 'lan-desktop' && styles.filterTextActive]}>
+                            Desktop LAN
+                        </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        onPress={() => setSelectedTab('cloud')}
+                        style={[styles.filterPill, selectedTab === 'cloud' && styles.filterPillActive]}
+                    >
+                        <Text style={[styles.filterText, selectedTab === 'cloud' && styles.filterTextActive]}>
+                            Cloud
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+
+                {/* 4. Models List */}
                 <ScrollView
                     style={styles.scrollList}
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={false}
                 >
-                    {/* On-Device SLMs */}
-                    <Text style={styles.sectionTitle}>On-Device Edge Models (Phone Native)</Text>
-                    {onDeviceModels.map(model => (
+                    {filteredModels.map(model => (
                         <ModelCard
                             key={model.id}
                             model={model}
@@ -115,35 +170,21 @@ export const ModelManagerScreen: React.FC = () => {
                         />
                     ))}
 
-                    {/* Local WiFi LAN */}
-                    <View style={styles.sectionHeaderRow}>
-                        <Text style={styles.sectionTitle}>Desktop LAN (Ollama / Local Server)</Text>
+                    {/* Configure LAN Action Box */}
+                    {selectedTab === 'all' || selectedTab === 'lan-desktop' ? (
                         <TouchableOpacity
                             onPress={() => setIsLanModalVisible(true)}
-                            style={styles.editLanBtn}
+                            style={styles.lanConfigCard}
+                            activeOpacity={0.8}
                         >
-                            <Text style={styles.editLanText}>Configure IP</Text>
+                            <Ionicons name="wifi-outline" size={20} color={colors.primary[600]} />
+                            <View style={{ flex: 1, marginLeft: 10 }}>
+                                <Text style={styles.lanConfigTitle}>Configure Desktop LAN Endpoint</Text>
+                                <Text style={styles.lanConfigSub}>Current: {lanEndpoint}</Text>
+                            </View>
+                            <Ionicons name="chevron-forward" size={16} color={colors.slate[400]} />
                         </TouchableOpacity>
-                    </View>
-                    {lanModels.map(model => (
-                        <ModelCard
-                            key={model.id}
-                            model={model}
-                            isActive={model.modelKey === activeModel.modelKey}
-                            onSelect={() => setActiveModel(model.modelKey)}
-                        />
-                    ))}
-
-                    {/* Cloud Models */}
-                    <Text style={styles.sectionTitle}>Cloud Intelligence (Online Fallback)</Text>
-                    {cloudModels.map(model => (
-                        <ModelCard
-                            key={model.id}
-                            model={model}
-                            isActive={model.modelKey === activeModel.modelKey}
-                            onSelect={() => setActiveModel(model.modelKey)}
-                        />
-                    ))}
+                    ) : null}
                 </ScrollView>
 
                 {/* Configure LAN Modal */}
@@ -161,13 +202,13 @@ export const ModelManagerScreen: React.FC = () => {
                                     onPress={() => setIsLanModalVisible(false)}
                                     style={styles.closeBtn}
                                 >
-                                    <Ionicons name="close" size={24} color={colors.slate[600]} />
+                                    <Ionicons name="close" size={22} color={colors.slate[600]} />
                                 </TouchableOpacity>
                             </View>
 
                             <ScrollView style={styles.modalBody}>
                                 <Text style={styles.modalHelp}>
-                                    Run Ollama on your PC or Mac on the same WiFi network and enter its IP address below (e.g. OLLAMA_HOST=0.0.0.0:11434).
+                                    Run Ollama on your PC or Mac on the same WiFi network and enter its IP address below (e.g. http://192.168.1.100:11434).
                                 </Text>
 
                                 <Input
@@ -196,8 +237,8 @@ export const ModelManagerScreen: React.FC = () => {
 const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
-        backgroundColor: colors.background.primary,
-        paddingTop: Platform.OS === 'android' ? 30 : 0,
+        backgroundColor: colors.background.canvas,
+        paddingTop: Platform.OS === 'android' ? 32 : 0,
     },
     container: {
         flex: 1,
@@ -207,18 +248,33 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingHorizontal: spacing.lg,
-        paddingVertical: spacing.md,
+        paddingVertical: spacing.xs + 2,
+    },
+    backBtn: {
+        width: 38,
+        height: 38,
+        borderRadius: 19,
+        backgroundColor: colors.background.surface,
+        borderWidth: 1,
+        borderColor: colors.slate[200],
+        alignItems: 'center',
+        justifyContent: 'center',
+        ...shadows.subtle,
+    },
+    headerTitleWrap: {
+        flex: 1,
+        marginLeft: spacing.md,
     },
     headerTitle: {
-        fontSize: typography.fontSize['2xl'],
+        fontSize: typography.fontSize.lg,
         fontWeight: '800',
         color: colors.text.primary,
-        letterSpacing: -0.5,
+        letterSpacing: -0.4,
     },
     headerSubtitle: {
         fontSize: typography.fontSize.xs,
         color: colors.text.muted,
-        marginTop: 2,
+        marginTop: 1,
     },
     offlineToggle: {
         flexDirection: 'row',
@@ -233,7 +289,7 @@ const styles = StyleSheet.create({
         borderColor: colors.primary[500],
     },
     offlineInactive: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.background.surface,
         borderColor: colors.slate[200],
     },
     offlineText: {
@@ -249,12 +305,12 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         marginHorizontal: spacing.lg,
-        marginBottom: spacing.sm,
-        backgroundColor: '#FFFFFF',
-        borderRadius: borderRadius.lg,
+        marginVertical: spacing.xs + 2,
+        backgroundColor: colors.background.surface,
+        borderRadius: borderRadius.xl,
         padding: spacing.md,
         borderWidth: 1,
-        borderColor: 'rgba(2, 132, 199, 0.15)',
+        borderColor: colors.slate[200],
         ...shadows.subtle,
     },
     bannerTextWrap: {
@@ -271,37 +327,62 @@ const styles = StyleSheet.create({
         color: colors.text.muted,
         marginTop: 1,
     },
+    filterRow: {
+        flexDirection: 'row',
+        paddingHorizontal: spacing.lg,
+        paddingVertical: spacing.xs,
+        gap: 6,
+    },
+    filterPill: {
+        paddingVertical: 5,
+        paddingHorizontal: spacing.sm + 2,
+        borderRadius: borderRadius.full,
+        backgroundColor: colors.background.surface,
+        borderWidth: 1,
+        borderColor: colors.slate[200],
+    },
+    filterPillActive: {
+        backgroundColor: colors.text.primary,
+        borderColor: colors.text.primary,
+    },
+    filterText: {
+        fontSize: 11,
+        fontWeight: '600',
+        color: colors.text.secondary,
+    },
+    filterTextActive: {
+        color: '#FFFFFF',
+        fontWeight: '700',
+    },
     scrollList: {
         flex: 1,
     },
     scrollContent: {
         paddingHorizontal: spacing.lg,
-        paddingBottom: spacing['3xl'],
+        paddingTop: spacing.xs,
+        paddingBottom: spacing['4xl'],
     },
-    sectionTitle: {
-        fontSize: typography.fontSize.xs,
-        fontWeight: '700',
-        color: colors.text.muted,
-        letterSpacing: 0.8,
-        textTransform: 'uppercase',
-        marginTop: spacing.md,
-        marginBottom: spacing.sm,
-    },
-    sectionHeaderRow: {
+    lanConfigCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        marginTop: spacing.md,
-        marginBottom: spacing.sm,
+        backgroundColor: colors.background.surface,
+        borderRadius: borderRadius.lg,
+        padding: spacing.md,
+        borderWidth: 1,
+        borderColor: 'rgba(2, 132, 199, 0.2)',
+        marginTop: spacing.sm,
+        ...shadows.subtle,
     },
-    editLanBtn: {
-        paddingVertical: 2,
-        paddingHorizontal: spacing.sm,
-    },
-    editLanText: {
-        fontSize: typography.fontSize.xs,
-        color: colors.primary[600],
+    lanConfigTitle: {
+        fontSize: typography.fontSize.sm,
         fontWeight: '700',
+        color: colors.text.primary,
+    },
+    lanConfigSub: {
+        fontSize: 11,
+        color: colors.primary[600],
+        marginTop: 2,
+        fontFamily: 'monospace',
     },
     modalOverlay: {
         flex: 1,
@@ -309,7 +390,7 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-end',
     },
     modalContent: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.background.surface,
         borderTopLeftRadius: borderRadius['2xl'],
         borderTopRightRadius: borderRadius['2xl'],
         maxHeight: '80%',
@@ -325,8 +406,8 @@ const styles = StyleSheet.create({
         borderBottomColor: colors.slate[100],
     },
     modalTitle: {
-        fontSize: typography.fontSize.lg,
-        fontWeight: '700',
+        fontSize: typography.fontSize.md,
+        fontWeight: '800',
         color: colors.text.primary,
     },
     closeBtn: {
